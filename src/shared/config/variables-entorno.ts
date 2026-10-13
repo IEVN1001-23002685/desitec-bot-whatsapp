@@ -6,12 +6,17 @@ const booleanoDeCadena = z
     typeof valor === 'boolean' ? valor : valor.trim().toLowerCase() === 'true',
   )
 
+const cadenaNoVacia = z
+  .string()
+  .optional()
+  .transform((valor) => (valor && valor.length > 0 ? valor : undefined))
+
 const esquemaConfiguracionCuenta = z.object({
   codigo: z.string().min(1),
   nombreComercial: z.string().min(1),
   idNumeroTelefono: z.string().min(1),
   telefonoVisible: z.string().min(1),
-  tokenAcceso: z.string().min(1).optional(),
+  tokenAcceso: cadenaNoVacia,
   activa: z.boolean().default(true),
 })
 
@@ -29,7 +34,7 @@ const esquemaEntorno = z.object({
   META_API_VERSION: z.string().default('v21.0'),
   WHATSAPP_DRY_RUN: booleanoDeCadena.default(true),
   WHATSAPP_VENTANA_ATENCION_ACTIVA: booleanoDeCadena.default(true),
-  API_INTERNAL_KEY: z.string().min(1).optional(),
+  API_INTERNAL_KEY: cadenaNoVacia,
   WEBHOOK_BODY_LIMIT: z.coerce.number().int().positive().default(1_048_576),
   WHATSAPP_ACCOUNTS: z
     .string()

@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ProveedorMensajesFalso,
-  crearAppPrueba,
-  cuentasPrueba,
-} from './helpers/en-memoria.js'
+import { ProveedorMensajesFalso, crearAppPrueba, cuentasPrueba } from './helpers/en-memoria.js'
 
 const CLAVE = 'clave-interna-test'
 const CUERPO = {
