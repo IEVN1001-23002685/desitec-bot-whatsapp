@@ -258,9 +258,7 @@ function clonarAlmacen(almacen: AlmacenEnMemoria): InstantaneaAlmacen {
     contactos: almacen.contactos.map((contacto) => ({ ...contacto })),
     conversaciones: almacen.conversaciones.map((conversacion) => ({
       ...conversacion,
-      ultimoMensajeEn: conversacion.ultimoMensajeEn
-        ? new Date(conversacion.ultimoMensajeEn)
-        : null,
+      ultimoMensajeEn: conversacion.ultimoMensajeEn ? new Date(conversacion.ultimoMensajeEn) : null,
     })),
     mensajes: almacen.mensajes.map((mensaje) => ({ ...mensaje })),
     eventos: almacen.eventos.map((evento) => ({ ...evento })),
@@ -271,9 +269,7 @@ function restaurarAlmacen(almacen: AlmacenEnMemoria, instantanea: InstantaneaAlm
   almacen.contactos = instantanea.contactos.map((contacto) => ({ ...contacto }))
   almacen.conversaciones = instantanea.conversaciones.map((conversacion) => ({
     ...conversacion,
-    ultimoMensajeEn: conversacion.ultimoMensajeEn
-      ? new Date(conversacion.ultimoMensajeEn)
-      : null,
+    ultimoMensajeEn: conversacion.ultimoMensajeEn ? new Date(conversacion.ultimoMensajeEn) : null,
   }))
   almacen.mensajes = instantanea.mensajes.map((mensaje) => ({ ...mensaje }))
   almacen.eventos = instantanea.eventos.map((evento) => ({ ...evento }))

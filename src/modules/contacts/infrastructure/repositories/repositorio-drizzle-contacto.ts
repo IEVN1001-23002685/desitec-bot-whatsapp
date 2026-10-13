@@ -2,7 +2,10 @@ import { eq } from 'drizzle-orm'
 import { contactos } from '../../../../shared/db/schema/index.js'
 import type { Transaccion } from '../../../../shared/db/tipos.js'
 import type { Contacto } from '../../domain/entities/contacto.js'
-import type { EntradaCrearContacto, RepositorioContacto } from '../../domain/ports/repositorio-contacto.js'
+import type {
+  EntradaCrearContacto,
+  RepositorioContacto,
+} from '../../domain/ports/repositorio-contacto.js'
 
 type FilaContacto = typeof contactos.$inferSelect
 

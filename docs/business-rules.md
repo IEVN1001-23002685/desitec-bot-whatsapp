@@ -28,10 +28,10 @@
 ## Mensajes y tipos
 
 - Tipos de mensaje no soportados (imagen, video, audio, location, etc.) se
-   **registran** (`tipo` guardada, `cuerpo = null`, payload en `carga_util` jsonb)
-   sin romper la solicitud.
+  **registran** (`tipo` guardada, `cuerpo = null`, payload en `carga_util` jsonb)
+  sin romper la solicitud.
 - Los eventos de `statuses` (entregados/leídos) **no** crean mensajes entrantes;
-   actualizan el estado del mensaje referenciado si existe.
+  actualizan el estado del mensaje referenciado si existe.
 - `id_wa` e `id_numero_telefono` se validan con patrones estrictos antes de usar.
 
 ## Envíos

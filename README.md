@@ -50,19 +50,19 @@ Nunca se versionan credenciales reales (`.gitignore` excluye `.env*` salvo `.env
 
 ## Endpoints
 
-| Método | Ruta | Descripción |
-| ------ | ---- | ----------- |
-| GET | `/health` | Liveness. |
-| GET | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`). |
-| POST | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria). |
+| Método | Ruta                 | Descripción                                         |
+| ------ | -------------------- | --------------------------------------------------- |
+| GET    | `/health`            | Liveness.                                           |
+| GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`). |
+| POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).       |
 
 ## Webhook en Meta for Developers
 
-1. En la app de Meta for Developers, sección *WhatsApp → Configuration*.
-2. *Webhook callback URL*: `https://<tu-dominio>/webhooks/whatsapp`.
-3. *Verify token*: el mismo valor de `META_VERIFY_TOKEN`.
+1. En la app de Meta for Developers, sección _WhatsApp → Configuration_.
+2. _Webhook callback URL_: `https://<tu-dominio>/webhooks/whatsapp`.
+3. _Verify token_: el mismo valor de `META_VERIFY_TOKEN`.
 4. Suscribir el campo `messages` del objeto `whatsapp_business_account`.
-5. Guardar el valor de *App secret* de *App settings → Basic* en `META_APP_SECRET`.
+5. Guardar el valor de _App secret_ de _App settings → Basic_ en `META_APP_SECRET`.
 
 Cuándo Meta llame al `GET`, el servidor responderá el `hub.challenge` solo si el
 `hub.verify_token` coincide (comparación en tiempo constante).

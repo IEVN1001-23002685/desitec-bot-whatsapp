@@ -1,9 +1,6 @@
 import { pgEnum } from 'drizzle-orm/pg-core'
 
-export const enumeracionEstadoConversacion = pgEnum('estado_conversacion', [
-  'abierta',
-  'cerrada',
-])
+export const enumeracionEstadoConversacion = pgEnum('estado_conversacion', ['abierta', 'cerrada'])
 
 export const enumeracionDireccionMensaje = pgEnum('direccion_mensaje', ['entrante', 'saliente'])
 

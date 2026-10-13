@@ -22,13 +22,13 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
 
 ## Módulos
 
-| Módulo | Responsabilidad |
-| ------ | --------------- |
-| `whatsapp` | Verificación, resolución de cuenta, recepción y normalización de eventos, HMAC. |
-| `contacts` | Entidad Contacto y su repositorio. |
-| `conversations` | Entidades Conversación/Mensaje y sus repositorios. |
-| `pipedrive` (pendiente) | Integración con Pipedrive (fase posterior). |
-| `followups` (pendiente) | Seguimientos programados (fase posterior). |
+| Módulo                  | Responsabilidad                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `whatsapp`              | Verificación, resolución de cuenta, recepción y normalización de eventos, HMAC. |
+| `contacts`              | Entidad Contacto y su repositorio.                                              |
+| `conversations`         | Entidades Conversación/Mensaje y sus repositorios.                              |
+| `pipedrive` (pendiente) | Integración con Pipedrive (fase posterior).                                     |
+| `followups` (pendiente) | Seguimientos programados (fase posterior).                                      |
 
 ## Flujo del webhook (POST /webhooks/whatsapp)
 

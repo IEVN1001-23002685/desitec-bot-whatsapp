@@ -38,7 +38,9 @@ describe('POST /webhooks/whatsapp (reprocesamiento y persistencia)', () => {
     for (const idNumeroTelefono of ['111111111111111', '222222222222222', '333333333333333']) {
       const cuerpo = construirCuerpoWebhook({
         idNumeroTelefono,
-        messages: [mensajeTexto({ id: `wamid.ACCOUNT.${idNumeroTelefono}`, from: '5215512345678' })],
+        messages: [
+          mensajeTexto({ id: `wamid.ACCOUNT.${idNumeroTelefono}`, from: '5215512345678' }),
+        ],
       })
       const estado = await post(cuerpo)
       expect(estado).toBe(200)
@@ -174,9 +176,9 @@ describe('POST /webhooks/whatsapp (reprocesamiento y persistencia)', () => {
 
     expect(almacen.contactos).toHaveLength(1)
     expect(almacen.conversaciones).toHaveLength(2)
-    expect(almacen.conversaciones.map((conversacion) => conversacion.idCuentaWhatsApp).sort()).toEqual(
-      ['cuenta-comercial', 'cuenta-soporte'],
-    )
+    expect(
+      almacen.conversaciones.map((conversacion) => conversacion.idCuentaWhatsApp).sort(),
+    ).toEqual(['cuenta-comercial', 'cuenta-soporte'])
     expect(almacen.conversaciones.map((conversacion) => conversacion.idContacto)).toEqual([
       almacen.contactos[0]?.id,
       almacen.contactos[0]?.id,

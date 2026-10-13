@@ -47,9 +47,7 @@ const esquemaEntorno = z.object({
 
 export type VariablesEntorno = z.infer<typeof esquemaEntorno>
 
-export function cargarVariablesEntorno(
-  fuente: NodeJS.ProcessEnv = process.env,
-): VariablesEntorno {
+export function cargarVariablesEntorno(fuente: NodeJS.ProcessEnv = process.env): VariablesEntorno {
   const resultado = esquemaEntorno.safeParse(fuente)
   if (!resultado.success) {
     throw new Error(

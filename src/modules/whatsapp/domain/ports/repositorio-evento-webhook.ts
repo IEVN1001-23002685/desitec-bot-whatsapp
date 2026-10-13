@@ -16,5 +16,9 @@ export interface RepositorioEventoWebhook {
     entrada: EntradaRegistrarEventoWebhook,
   ): Promise<{ insertado: boolean; id: string }>
   buscarPorClaveEvento(claveEvento: string): Promise<ResumenEventoWebhook | null>
-  marcarEstado(claveEvento: string, estado: EstadoEventoWebhook, error: string | null): Promise<void>
+  marcarEstado(
+    claveEvento: string,
+    estado: EstadoEventoWebhook,
+    error: string | null,
+  ): Promise<void>
 }
