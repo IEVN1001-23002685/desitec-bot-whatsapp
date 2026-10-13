@@ -8,6 +8,7 @@ export const cuentasWhatsApp = pgTable(
     nombreComercial: text('nombre_comercial').notNull(),
     idNumeroTelefono: text('id_numero_telefono').notNull().unique(),
     telefonoVisible: text('telefono_visible').notNull(),
+    tokenAcceso: text('token_acceso'),
     estaActiva: boolean('esta_activa').notNull().default(true),
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
     actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),

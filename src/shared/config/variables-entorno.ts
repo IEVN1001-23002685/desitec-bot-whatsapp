@@ -11,6 +11,7 @@ const esquemaConfiguracionCuenta = z.object({
   nombreComercial: z.string().min(1),
   idNumeroTelefono: z.string().min(1),
   telefonoVisible: z.string().min(1),
+  tokenAcceso: z.string().min(1).optional(),
   activa: z.boolean().default(true),
 })
 

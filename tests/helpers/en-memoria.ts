@@ -10,6 +10,7 @@ import type {
 } from '../../src/modules/conversations/domain/ports/repositorio-conversacion.js'
 import type {
   EntradaInsertarMensajeEntrante,
+  EntradaInsertarMensajeSaliente,
   RepositorioMensaje,
 } from '../../src/modules/conversations/domain/ports/repositorio-mensaje.js'
 import type { CuentaWhatsApp } from '../../src/modules/whatsapp/domain/entities/cuenta-whatsapp.js'
@@ -34,6 +35,7 @@ export type MensajeAlmacenado = {
   tipo: string
   cuerpo: string | null
   estado: string | null
+  creadoEn: Date
 }
 
 export type EventoAlmacenado = {
@@ -148,9 +150,42 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
       tipo: entrada.tipo,
       cuerpo: entrada.cuerpo,
       estado: null,
+      creadoEn: entrada.marcaTiempoMeta ?? new Date(),
     }
     this.almacen.mensajes.push(mensaje)
     return { insertado: true, id: mensaje.id }
+  }
+
+  async insertarSaliente(entrada: EntradaInsertarMensajeSaliente): Promise<{ id: string }> {
+    const mensaje: MensajeAlmacenado = {
+      id: `mensaje-${(this.almacen.mensajes.length + 1).toString()}`,
+      idConversacion: entrada.idConversacion,
+      idCuentaWhatsApp: entrada.idCuentaWhatsApp,
+      direccion: 'saliente',
+      idMensajeMeta: entrada.idMensajeMeta,
+      tipo: entrada.tipo,
+      cuerpo: entrada.cuerpo,
+      estado: entrada.estado,
+      creadoEn: new Date(),
+    }
+    this.almacen.mensajes.push(mensaje)
+    return { id: mensaje.id }
+  }
+
+  async buscarUltimoEntranteEn(idConversacion: string): Promise<Date | null> {
+    const entrantes = this.almacen.mensajes.filter(
+      (mensaje) => mensaje.idConversacion === idConversacion && mensaje.direccion === 'entrante',
+    )
+    if (entrantes.length === 0) {
+      return null
+    }
+    let ultimo = entrantes[0]!.creadoEn
+    for (const mensaje of entrantes) {
+      if (mensaje.creadoEn.getTime() > ultimo.getTime()) {
+        ultimo = mensaje.creadoEn
+      }
+    }
+    return ultimo
   }
 }
 
@@ -174,6 +209,11 @@ export class RepositorioCuentaWhatsAppEnMemoria implements RepositorioCuentaWhat
     const cuenta = this.cuentas.find(
       (item) => item.idNumeroTelefono === idNumeroTelefono && item.estaActiva,
     )
+    return cuenta ?? null
+  }
+
+  async buscarPorCodigo(codigo: string): Promise<CuentaWhatsApp | null> {
+    const cuenta = this.cuentas.find((item) => item.codigo === codigo && item.estaActiva)
     return cuenta ?? null
   }
 
@@ -260,7 +300,10 @@ function clonarAlmacen(almacen: AlmacenEnMemoria): InstantaneaAlmacen {
       ...conversacion,
       ultimoMensajeEn: conversacion.ultimoMensajeEn ? new Date(conversacion.ultimoMensajeEn) : null,
     })),
-    mensajes: almacen.mensajes.map((mensaje) => ({ ...mensaje })),
+    mensajes: almacen.mensajes.map((mensaje) => ({
+      ...mensaje,
+      creadoEn: new Date(mensaje.creadoEn),
+    })),
     eventos: almacen.eventos.map((evento) => ({ ...evento })),
   }
 }
@@ -271,7 +314,10 @@ function restaurarAlmacen(almacen: AlmacenEnMemoria, instantanea: InstantaneaAlm
     ...conversacion,
     ultimoMensajeEn: conversacion.ultimoMensajeEn ? new Date(conversacion.ultimoMensajeEn) : null,
   }))
-  almacen.mensajes = instantanea.mensajes.map((mensaje) => ({ ...mensaje }))
+  almacen.mensajes = instantanea.mensajes.map((mensaje) => ({
+    ...mensaje,
+    creadoEn: new Date(mensaje.creadoEn),
+  }))
   almacen.eventos = instantanea.eventos.map((evento) => ({ ...evento }))
 }
 
@@ -319,6 +365,7 @@ export function cuentasPrueba(): CuentaWhatsApp[] {
       nombreComercial: 'Linea Comercial',
       idNumeroTelefono: '111111111111111',
       telefonoVisible: '+5210000000001',
+      tokenAcceso: 'token-comercial',
       estaActiva: true,
     },
     {
@@ -327,6 +374,7 @@ export function cuentasPrueba(): CuentaWhatsApp[] {
       nombreComercial: 'Linea Soporte',
       idNumeroTelefono: '222222222222222',
       telefonoVisible: '+5210000000002',
+      tokenAcceso: 'token-soporte',
       estaActiva: true,
     },
     {
@@ -335,6 +383,7 @@ export function cuentasPrueba(): CuentaWhatsApp[] {
       nombreComercial: 'Linea Postventa',
       idNumeroTelefono: '333333333333333',
       telefonoVisible: '+5210000000003',
+      tokenAcceso: 'token-postventa',
       estaActiva: true,
     },
   ]

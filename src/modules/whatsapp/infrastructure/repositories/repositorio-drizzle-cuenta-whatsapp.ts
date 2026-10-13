@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { cuentasWhatsApp } from '../../../../shared/db/schema/index.js'
 import type { BaseDeDatos } from '../../../../shared/db/tipos.js'
 import type { CuentaWhatsApp } from '../../domain/entities/cuenta-whatsapp.js'
@@ -22,6 +22,19 @@ export class RepositorioDrizzleCuentaWhatsApp implements RepositorioCuentaWhatsA
     return mapearCuenta(fila)
   }
 
+  async buscarPorCodigo(codigo: string): Promise<CuentaWhatsApp | null> {
+    const filas = await this.baseDeDatos
+      .select()
+      .from(cuentasWhatsApp)
+      .where(and(eq(cuentasWhatsApp.codigo, codigo), eq(cuentasWhatsApp.estaActiva, true)))
+      .limit(1)
+    const fila = filas[0]
+    if (!fila) {
+      return null
+    }
+    return mapearCuenta(fila)
+  }
+
   async listarActivas(): Promise<CuentaWhatsApp[]> {
     const filas = await this.baseDeDatos
       .select()
@@ -38,6 +51,7 @@ function mapearCuenta(fila: FilaCuenta): CuentaWhatsApp {
     nombreComercial: fila.nombreComercial,
     idNumeroTelefono: fila.idNumeroTelefono,
     telefonoVisible: fila.telefonoVisible,
+    tokenAcceso: fila.tokenAcceso,
     estaActiva: fila.estaActiva,
   }
 }

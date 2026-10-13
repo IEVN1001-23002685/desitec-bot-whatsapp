@@ -60,6 +60,7 @@ export async function sembrarCuentas(baseDeDatos: BaseDeDatos): Promise<void> {
       nombreComercial: cuenta.nombreComercial,
       idNumeroTelefono: cuenta.idNumeroTelefono,
       telefonoVisible: cuenta.telefonoVisible,
+      tokenAcceso: cuenta.tokenAcceso,
       estaActiva: cuenta.estaActiva,
     })
   }

@@ -19,6 +19,7 @@ async function sembrar(): Promise<void> {
           nombreComercial: cuenta.nombreComercial,
           idNumeroTelefono: cuenta.idNumeroTelefono,
           telefonoVisible: cuenta.telefonoVisible,
+          tokenAcceso: cuenta.tokenAcceso ?? null,
           estaActiva: cuenta.activa,
         })
         .onConflictDoUpdate({
@@ -27,6 +28,7 @@ async function sembrar(): Promise<void> {
             nombreComercial: cuenta.nombreComercial,
             idNumeroTelefono: cuenta.idNumeroTelefono,
             telefonoVisible: cuenta.telefonoVisible,
+            tokenAcceso: cuenta.tokenAcceso ?? null,
             estaActiva: cuenta.activa,
             actualizadoEn: new Date(),
           },

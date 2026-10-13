@@ -4,5 +4,6 @@ export type CuentaWhatsApp = {
   nombreComercial: string
   idNumeroTelefono: string
   telefonoVisible: string
+  tokenAcceso: string | null
   estaActiva: boolean
 }
