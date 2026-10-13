@@ -43,6 +43,11 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
     expect(comercial).not.toBeNull()
     expect(comercial?.codigo).toBe('linea-comercial')
     expect(comercial?.estaActiva).toBe(true)
+    expect(comercial?.tokenAcceso).toBe('token-comercial')
+
+    const porCodigo = await repositorio.buscarPorCodigo('linea-comercial')
+    expect(porCodigo?.id).toBe(comercial?.id)
+    expect(await repositorio.buscarPorCodigo('linea-inexistente')).toBeNull()
 
     expect(await repositorio.listarActivas()).toHaveLength(3)
 
@@ -52,6 +57,7 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
       .where(eq(cuentasWhatsApp.codigo, 'linea-soporte'))
 
     expect(await repositorio.buscarPorIdNumeroTelefono('222222222222222')).toBeNull()
+    expect(await repositorio.buscarPorCodigo('linea-soporte')).toBeNull()
     expect(await repositorio.listarActivas()).toHaveLength(2)
   })
 
@@ -159,6 +165,59 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
 
     expect(resultados).toEqual([true, false])
     expect(await baseDeDatos.select().from(mensajes)).toHaveLength(1)
+  })
+
+  it('mensaje: inserta un saliente y devuelve el ultimo entrante de la conversacion', async () => {
+    await baseDeDatos.transaction(async (transaccion) => {
+      const cuenta = await new RepositorioDrizzleCuentaWhatsApp(
+        baseDeDatos,
+      ).buscarPorIdNumeroTelefono('111111111111111')
+      if (!cuenta) {
+        throw new Error('cuenta no sembrada')
+      }
+      const contacto = await new RepositorioDrizzleContacto(transaccion).crear({
+        idWa: '5215512345678',
+        nombrePerfil: null,
+      })
+      const conversacion = await new RepositorioDrizzleConversacion(transaccion).crear({
+        idCuentaWhatsApp: cuenta.id,
+        idContacto: contacto.id,
+        en: new Date(),
+      })
+      const repositorio = new RepositorioDrizzleMensaje(transaccion)
+
+      expect(await repositorio.buscarUltimoEntranteEn(conversacion.id)).toBeNull()
+
+      const marca = new Date('2026-02-01T09:00:00.000Z')
+      await repositorio.insertarEntrante({
+        idConversacion: conversacion.id,
+        idCuentaWhatsApp: cuenta.id,
+        idMensajeMeta: 'wamid.INTEG.SAL.ENTRANTE',
+        tipo: 'text',
+        cuerpo: 'Hola',
+        cargaUtil: null,
+        marcaTiempoMeta: marca,
+      })
+
+      const saliente = await repositorio.insertarSaliente({
+        idConversacion: conversacion.id,
+        idCuentaWhatsApp: cuenta.id,
+        idMensajeMeta: 'wamid.INTEG.SAL.SALIENTE',
+        tipo: 'text',
+        cuerpo: 'Buen dia',
+        estado: 'enviado',
+      })
+      expect(saliente.id).toEqual(expect.any(String))
+
+      const ultimo = await repositorio.buscarUltimoEntranteEn(conversacion.id)
+      expect(ultimo?.toISOString()).toBe(marca.toISOString())
+    })
+
+    const filas = await baseDeDatos.select().from(mensajes)
+    expect(filas).toHaveLength(2)
+    const saliente = filas.find((fila) => fila.direccion === 'saliente')
+    expect(saliente?.estado).toBe('enviado')
+    expect(saliente?.idMensajeMeta).toBe('wamid.INTEG.SAL.SALIENTE')
   })
 
   it('estado de mensaje: actualiza por idMensajeMeta y devuelve false si no existe', async () => {
