@@ -10,10 +10,12 @@ services:
     volumes:
       - desitec_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d desitec_bot"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U postgres -d desitec_bot"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 30s
+      start_interval: 1s
 
   app:
     build: .

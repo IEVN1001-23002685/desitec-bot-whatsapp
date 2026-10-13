@@ -16,14 +16,15 @@ Reglas de desarrollo para OpenCode en el proyecto **desitec-bot-whatsapp**.
 
 ## Comandos (script de npm en package.json)
 
-- `npm run dev` — servidor HTTP con `tsx watch src/server.ts`
-- `npm run worker` — worker `tsx watch src/worker.ts`
+- `npm run dev` — servidor HTTP con `tsx watch src/servidor.ts`
+- `npm run worker` — worker `tsx watch src/trabajador.ts`
 - `npm run build` — `tsc -p tsconfig.json` → `dist/`
-- `npm run start` — `node dist/server.js`
+- `npm run start` — `node dist/servidor.js`
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run lint` — `eslint .`
 - `npm test` — `vitest run` (un solo test: `npx vitest run <ruta>`)
-- `npm run db:generate` / `npm run db:migrate` — `drizzle-kit generate` / `migrate`
+- `npm run db:generate` — `drizzle-kit generate` → `drizzle/`
+- `npm run db:migrate` — `tsx src/shared/db/migrar.ts` (migrador de `drizzle-orm`; usa este en vez de `drizzle-kit migrate`, que en 0.31.x oculta los errores de migración y sale con código 1 sin mensaje). Antes de migrar/sembrar, espera a Postgres con `docker compose up -d --wait db` (el `healthcheck` usa `pg_isready -h 127.0.0.1` por TCP); `db:migrate` y `db:seed` además reintentan la conexión al arrancar.
 
 No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx prettier --write .`).
 
@@ -42,7 +43,7 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 - Monolito modular (Clean/Hexagonal): un único microservicio desplegable organizado en módulos independientes.
 - Módulos en `src/modules/`: `whatsapp`, `pipedrive`, `contacts`, `conversations`, `followups`. Cada uno con las capas que necesite: `domain` (entidades, tipos, interfaces), `application` (casos de uso), `infrastructure` (persistencia/proveedores externos), `presentation` (rutas/validaciones HTTP).
 - Regla de dependencias: el `domain` **no** puede depender de Fastify, Drizzle, Meta ni Pipedrive; las dependencias apuntan hacia las capas internas.
-- `src/shared/` para configuración, logging (Pino), errores y base de datos; `src/app.ts`, `src/server.ts`, `src/worker.ts`; `drizzle/`, `tests/`, `docs/adr/`.
+- `src/shared/` para configuración, logging (Pino), errores y base de datos; `src/app.ts`, `src/servidor.ts`, `src/trabajador.ts`; `drizzle/`, `tests/`, `docs/adr/`.
 - El worker es un proceso separado que procesará seguimientos persistidos en PostgreSQL — no usar temporizadores en memoria como mecanismo de programación.
 - Patrones permitidos cuando haya necesidad real: Repository, Adapter, Strategy, State Machine, DI, Event-Driven, Outbox/Inbox. No crear abstracciones decorativas. Sin Redis/RabbitMQ/NestJS/Prisma/React sin justificación.
 
@@ -66,4 +67,5 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 ## Estructura esperada del repo
 
 Presente: `package.json`, `package-lock.json`, `tsconfig.json`, `.gitignore`, `node_modules/`.
-Pendiente de crear (no lo borres de la planificación): `eslint.config.js`, `.prettierrc`, `.env.example`, `drizzle.config.ts`, `Dockerfile`, `compose.yaml`, `README.md`, `.github/workflows/ci.yml`.
+Creados con la Fase 1: `eslint.config.js`, `.prettierrc`, `.env.example`, `drizzle.config.ts`, `README.md`, `Dockerfile`, `compose.yaml`, `.dockerignore`.
+Pendiente de crear (no lo borres de la planificación): `.github/workflows/ci.yml`.
