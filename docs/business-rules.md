@@ -36,10 +36,25 @@
 
 ## Envíos
 
-- Fase 1 **no envía mensajes**. `META_ACCESS_TOKEN` queda preparado pero sin uso.
-- `WHATSAPP_DRY_RUN=true` por defecto: sin envíos reales en desarrollo.
-- Habilitar envíos reales requiere implementar plantillas aprobadas, ventana de
-  24 h y respetar consentimiento — fuera del alcance de esta fase.
+- Cada cuenta (número) usa su **propio token de Meta** (`cuentas_whatsapp.token_acceso`),
+  cargado con `npm run db:seed`. Si la cuenta no tiene token, el envío se rechaza
+  con 503 `ACCOUNT_NO_TOKEN`.
+- `WHATSAPP_DRY_RUN=true` por defecto: el envío se simula (id `dry-run-...`) sin
+  llamar a Meta. Para envíos reales: `WHATSAPP_DRY_RUN=false` + token real.
+- Guard de ventana de atención: con `WHATSAPP_VENTANA_ATENCION_ACTIVA=true` solo
+  se envía si hubo un mensaje **entrante dentro de las últimas 24 h**; si no,
+  responde 409 `WINDOW_CLOSED`. La flag existe para pruebas locales
+  (`false`); en producción se mantiene activa.
+- Un mensaje saliente se persiste con `direccion='saliente'`,
+  `id_mensaje_meta` de Meta y `estado='enviado'`. Los `statuses` posteriores de
+  Meta (entregado/leído) actualizan ese mismo registro por `id_mensaje_meta`.
+- Si Meta falla o se agota el tiempo de espera, el envío responde 502
+  `MESSAGE_SEND_FAILED` y **no** se persiste el saliente.
+- El endpoint `POST /api/mensajes` es interno y exige el header
+  `x-api-key-interna` igual a `API_INTERNAL_KEY` (comparación en tiempo constante);
+  sin clave configurada la ruta no se registra (404).
+- Pendiente (fase posterior): plantillas aprobadas de Meta fuera de la ventana de
+  24 h y respeto de consentimiento/cancelación.
 
 ## Privacidad y logs
 

@@ -3,15 +3,18 @@
 Bot de WhatsApp empresarial para Desitec basado en la **Meta WhatsApp Cloud API**,
 **Fastify**, **TypeScript** (Clean/Hexagonal), **PostgreSQL** y **Drizzle ORM**.
 
-Estado actual (Fase 1): recepción segura de webhooks, identificación de tres
+Estado actual (Fase 2): recepción segura de webhooks, identificación de tres
 números empresariales independientes, persistencia de mensajes entrantes y de
-conversaciones. **No** envía mensajes todavía (modo `WHATSAPP_DRY_RUN`).
+conversaciones, y **envío real de mensajes** de texto por número (token por
+cuenta) a través de un endpoint interno. Los envíos siguen en `WHATSAPP_DRY_RUN`
+por defecto.
 
 ## Stack
 
 - Node.js 24, TypeScript (strict, ESM/NodeNext), Fastify 5, PostgreSQL, Drizzle ORM,
   Zod, Pino, Vitest.
-- Sin dependencias nuevas en Fase 1: HMAC-SHA256 con `node:crypto`.
+- Sin dependencias nuevas en Fase 1/2: HMAC-SHA256 con `node:crypto` y envío con
+  el `fetch` global de Node.
 
 ## Comandos
 
@@ -41,22 +44,27 @@ Ver `.env.example`:
 - `DATABASE_URL`
 - `META_APP_SECRET` — valida `X-Hub-Signature-256`.
 - `META_VERIFY_TOKEN` — reto GET de verificación.
-- `META_ACCESS_TOKEN` — **aún sin uso** (previsto para envíos en fases siguientes).
-- `META_API_VERSION`
-- `WHATSAPP_DRY_RUN` — `true` por defecto; no enviar mensajes reales.
+- `META_API_VERSION` — versión de la Graph API (por defecto `v21.0`).
+- `WHATSAPP_DRY_RUN` — `true` por defecto; simula el envío sin llamar a Meta.
+- `WHATSAPP_VENTANA_ATENCION_ACTIVA` — `true` por defecto; exige un mensaje
+  entrante dentro de 24 h para enviar. Ponlo en `false` solo para pruebas locales.
+- `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes`. Si está vacía,
+  el endpoint no se registra (responde 404).
 - `WHATSAPP_ACCOUNTS` — JSON con las cuentas a sembrar (`codigo`, `nombreComercial`,
-  `idNumeroTelefono`, `telefonoVisible`, `activa`).
+  `idNumeroTelefono`, `telefonoVisible`, `tokenAcceso`, `activa`). El `tokenAcceso`
+  es el token de Meta **por número** (cada línea tiene el suyo).
 - `WEBHOOK_BODY_LIMIT` — límite de cuerpo HTTP (bytes).
 
 Nunca se versionan credenciales reales (`.gitignore` excluye `.env*` salvo `.env.example`).
 
 ## Endpoints
 
-| Método | Ruta                 | Descripción                                         |
-| ------ | -------------------- | --------------------------------------------------- |
-| GET    | `/health`            | Liveness.                                           |
-| GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`). |
-| POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).       |
+| Método | Ruta                 | Descripción                                            |
+| ------ | -------------------- | ------------------------------------------------------ |
+| GET    | `/health`            | Liveness.                                              |
+| GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`).    |
+| POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).          |
+| POST   | `/api/mensajes`      | Envío de texto interno (header `x-api-key-interna`).   |
 
 ## Webhook en Meta for Developers
 
@@ -96,6 +104,36 @@ $url = "http://localhost:3000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_to
 Los logs no registran tokens, firmas ni números completos (métricas y
 `enmascararTelefono` enmascaran a `***####`).
 
+## Envío de mensajes (Fase 2)
+
+`POST /api/mensajes` envía un mensaje de texto desde una de las líneas. Requiere:
+
+- Header `x-api-key-interna` igual a `API_INTERNAL_KEY` (comparación en tiempo
+  constante). Sin `API_INTERNAL_KEY` configurada, la ruta no existe (404).
+- `WHATSAPP_DRY_RUN=false` y un `tokenAcceso` real para la cuenta (guardado por
+  `npm run db:seed`).
+- Con `WHATSAPP_VENTANA_ATENCION_ACTIVA=true`, debe existir un mensaje entrante
+  dentro de las últimas 24 h; si no, responde 409 `WINDOW_CLOSED`.
+
+Cuerpo y respuestas:
+
+```jsonc
+// request
+{ "codigoCuenta": "linea-comercial", "idWa": "5215512345678", "cuerpo": "Hola" }
+// 200
+{ "enviado": true, "idMensajeMeta": "wamid...", "idConversacion": "uuid" }
+```
+
+Script de prueba (con `npm run dev` corriendo):
+
+```powershell
+$env:API_INTERNAL_KEY = '<clave>'   # o pásala con -Clave
+.\scripts\prueba-envio.ps1 -IdWa 5215512345678
+```
+
+Recomendado: validar primero con `WHATSAPP_DRY_RUN=true` (devuelve un id
+`dry-run-...` y guarda el saliente sin llamar a Meta) y después con `false`.
+
 ## Docker (PostgreSQL y la pila completa)
 
 Requisitos: Docker Desktop con WSL2. **Todo se corre desde PowerShell.**
@@ -127,7 +165,7 @@ El pipeline `.github/workflows/ci.yml` corre en GitHub Actions en cada push/PR:
 PostgreSQL real, integración contra una BD dedicada `desitec_bot_test` (se crea y
 migra sola) y `npm run build`.
 
-## Verificación end-to-end (Fase 1)
+## Verificación end-to-end (Fase 1 y 2)
 
 Con `npm run build` correcto y la pila arriba (`docker compose up -d --build`),
 en PowerShell:
@@ -145,6 +183,15 @@ docker compose exec db psql -U postgres -d desitec_bot `
   -c "select id_wa from contactos; select id_mensaje_meta from mensajes;"
 ```
 
+Probar un envío (requiere `API_INTERNAL_KEY` y, en real, `tokenAcceso` + `DRY_RUN=false`):
+
+```powershell
+$env:API_INTERNAL_KEY = '<clave>'
+.\scripts\prueba-envio.ps1 -IdWa <numero-destino>
+docker compose exec db psql -U postgres -d desitec_bot `
+  -c "select direccion, estado, id_mensaje_meta from mensajes;"
+```
+
 ## Estructura
 
 ```
@@ -154,11 +201,12 @@ src/
   modules/
     whatsapp/        verificacion, resolucion de cuentas, recepcion de eventos, HMAC
     contacts/        BuscarOCrearContacto
-    conversations/   BuscarOCrearConversacion, mensajes y transaccion entrante
+    conversations/   BuscarOCrearConversacion, mensajes y transaccion entrante/saliente
     pipedrive/       (pendiente, fase posterior)
     followups/       (pendiente, fase posterior)
 tests/               Vitest: unitarias (fakes + fastify.inject) e integracion (tests/integracion/)
 docs/                arquitectura y reglas de negocio
+scripts/             utilidades manuales (prueba-envio.ps1)
 drizzle/             migraciones (generadas con npm run db:generate)
 Dockerfile + compose.yaml   imagen de la app y pila local (db/app/worker)
 .github/workflows/ci.yml    pipeline CI
@@ -168,7 +216,7 @@ Ver `docs/architecture.md` y `docs/business-rules.md` para detalles.
 
 ## Pendiente
 
-- Envío real de mensajes (usar `META_ACCESS_TOKEN`, fuera de `DRY_RUN`).
+- Plantillas aprobadas de Meta y ventana de atención automática (más allá del guard con flag).
 - Motor de respuestas / chatbot.
 - Integración con Pipedrive.
 - Worker de seguimientos persistidos en PostgreSQL (skeleton Docker listo).

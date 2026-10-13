@@ -44,13 +44,13 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 - Monolito modular (Clean/Hexagonal): un único microservicio desplegable organizado en módulos independientes.
 - Módulos en `src/modules/`: `whatsapp`, `pipedrive`, `contacts`, `conversations`, `followups`. Cada uno con las capas que necesite: `domain` (entidades, tipos, interfaces), `application` (casos de uso), `infrastructure` (persistencia/proveedores externos), `presentation` (rutas/validaciones HTTP).
 - Regla de dependencias: el `domain` **no** puede depender de Fastify, Drizzle, Meta ni Pipedrive; las dependencias apuntan hacia las capas internas.
-- `src/shared/` para configuración, logging (Pino), errores y base de datos; `src/app.ts`, `src/servidor.ts`, `src/trabajador.ts`; `drizzle/`, `tests/`, `docs/adr/`.
+- `src/shared/` para configuración, logging (Pino), errores y base de datos; `src/app.ts`, `src/servidor.ts`, `src/trabajador.ts`; `drizzle/`, `tests/`, `docs/adr/`, `scripts/`.
 - El worker es un proceso separado que procesará seguimientos persistidos en PostgreSQL — no usar temporizadores en memoria como mecanismo de programación.
 - Patrones permitidos cuando haya necesidad real: Repository, Adapter, Strategy, State Machine, DI, Event-Driven, Outbox/Inbox. No crear abstracciones decorativas. Sin Redis/RabbitMQ/NestJS/Prisma/React sin justificación.
 
 ## Persistencia
 
-- PostgreSQL + Drizzle. Tablas previstas: cuentas empresariales de WhatsApp, contactos, conversaciones, mensajes, referencias a persona/deal de Pipedrive, reglas de seguimiento, seguimientos programados, eventos de webhook procesados.
+- PostgreSQL + Drizzle. Tablas: cuentas empresariales de WhatsApp (`cuentas_whatsapp` incluye `token_acceso` —token de Meta por número—), contactos, conversaciones, mensajes, referencias a persona/deal de Pipedrive, reglas de seguimiento, seguimientos programados, eventos de webhook procesados.
 - Cada conversación conserva el número empresarial que la originó; un teléfono puede corresponder a varias oportunidades → no asumir unicidad.
 - Fechas con zona horaria; toda relación debe quedar indexada.
 - Cambios de esquema ⇒ generar migración con `npm run db:generate` y aplicar con `db:migrate`.
@@ -62,6 +62,8 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 - Idempotencia: eventos repetidos no ejecutan acciones comerciales dos veces.
 - Todos los llamados externos manejan errores y timeouts; los registros no exponen tokens ni datos personales innecesarios.
 - Seguimientos: reverificar el estado comercial antes de enviar, respetar consentimiento/cancelación, pausar la secuencia cuando el cliente responde, usar plantillas aprobadas de Meta fuera de la ventana de atención.
+- **Fase 2 (envío):** el caso de uso `EnviarMensajeSaliente` valida la ventana de atención (flag `WHATSAPP_VENTANA_ATENCION_ACTIVA`) y usa `ProveedorMetaMensajes` (fetch con AbortController). Los salientes se persisten con `direccion='saliente'`, `id_mensaje_meta` y `estado`. Si el envío falla a Meta, **no** se persiste el mensaje saliente.
+- **Endpoint interno:** `POST /api/mensajes` exige `x-api-key-interna` igual a `API_INTERNAL_KEY` (comparación en tiempo constante); si no hay `API_INTERNAL_KEY`, la ruta no se registra (404).
 - No exponer endpoints de webhook que aparenten validar eventos sin validarlos: si la verificación no está implementada, el endpoint queda explícitamente bloqueado.
 - No incluir claves, tokens ni datos personales reales en el repo (ver `.env.example`).
 
@@ -69,3 +71,4 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 
 Presente: `package.json`, `package-lock.json`, `tsconfig.json`, `.gitignore`, `.gitattributes`, `.prettierignore`, `node_modules/`.
 Creados con la Fase 1: `eslint.config.js`, `.prettierrc`, `.env.example`, `drizzle.config.ts`, `README.md`, `Dockerfile`, `compose.yaml`, `.dockerignore`, `.github/workflows/ci.yml`.
+Incluye `scripts/` para utilidades manuales.
