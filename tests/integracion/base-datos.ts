@@ -7,8 +7,7 @@ import { cuentasPrueba } from '../helpers/en-memoria.js'
 import type { BaseDeDatos } from '../../src/shared/db/tipos.js'
 
 export const CADENA_PRUEBA =
-  process.env.TEST_DATABASE_URL ??
-  'postgres://postgres:postgres@localhost:5432/desitec_bot_test'
+  process.env.TEST_DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/desitec_bot_test'
 
 export function nombreBaseDeDatosPrueba(): string {
   return new URL(CADENA_PRUEBA).pathname.replace(/^\//, '')

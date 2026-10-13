@@ -117,7 +117,7 @@ describe('POST /webhooks/whatsapp con repositorios reales', () => {
     expect(await post(cuerpo)).toBe(200)
 
     expect(await contarMensajes()).toBe(1)
-    expect((await baseDeDatos.select().from(eventosWebhook))).toHaveLength(1)
+    expect(await baseDeDatos.select().from(eventosWebhook)).toHaveLength(1)
     expect((await ultimoEvento())?.estado).toBe('procesado')
   })
 
@@ -135,8 +135,8 @@ describe('POST /webhooks/whatsapp con repositorios reales', () => {
     expect(await post(segundo)).toBe(200)
 
     expect(await contarMensajes()).toBe(2)
-    expect((await baseDeDatos.select().from(contactos))).toHaveLength(1)
-    expect((await baseDeDatos.select().from(conversaciones))).toHaveLength(1)
+    expect(await baseDeDatos.select().from(contactos)).toHaveLength(1)
+    expect(await baseDeDatos.select().from(conversaciones)).toHaveLength(1)
   })
 
   it('ignora cuentas desconocidas sin persistir mensajes', async () => {

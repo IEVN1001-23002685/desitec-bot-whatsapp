@@ -74,13 +74,13 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
     })
 
     expect(idCreado).not.toBe('')
-    expect((await baseDeDatos.select().from(contactos))).toHaveLength(1)
+    expect(await baseDeDatos.select().from(contactos)).toHaveLength(1)
   })
 
   it('conversacion: crea por cuenta+contacto, es idempotente y actualiza el ultimo mensaje', async () => {
-    const cuenta = await new RepositorioDrizzleCuentaWhatsApp(baseDeDatos).buscarPorIdNumeroTelefono(
-      '111111111111111',
-    )
+    const cuenta = await new RepositorioDrizzleCuentaWhatsApp(
+      baseDeDatos,
+    ).buscarPorIdNumeroTelefono('111111111111111')
     if (!cuenta) {
       throw new Error('cuenta no sembrada')
     }
@@ -117,14 +117,14 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
     })
 
     expect(idConversacion).not.toBe('')
-    expect((await baseDeDatos.select().from(conversaciones))).toHaveLength(1)
+    expect(await baseDeDatos.select().from(conversaciones)).toHaveLength(1)
   })
 
   it('mensaje: inserta un mensaje entrante y no duplica por idMensajeMeta', async () => {
     const resultados: boolean[] = await baseDeDatos.transaction(async (transaccion) => {
-      const cuenta = await new RepositorioDrizzleCuentaWhatsApp(baseDeDatos).buscarPorIdNumeroTelefono(
-        '111111111111111',
-      )
+      const cuenta = await new RepositorioDrizzleCuentaWhatsApp(
+        baseDeDatos,
+      ).buscarPorIdNumeroTelefono('111111111111111')
       if (!cuenta) {
         throw new Error('cuenta no sembrada')
       }
@@ -155,14 +155,14 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
     })
 
     expect(resultados).toEqual([true, false])
-    expect((await baseDeDatos.select().from(mensajes))).toHaveLength(1)
+    expect(await baseDeDatos.select().from(mensajes)).toHaveLength(1)
   })
 
   it('estado de mensaje: actualiza por idMensajeMeta y devuelve false si no existe', async () => {
     await baseDeDatos.transaction(async (transaccion) => {
-      const cuenta = await new RepositorioDrizzleCuentaWhatsApp(baseDeDatos).buscarPorIdNumeroTelefono(
-        '111111111111111',
-      )
+      const cuenta = await new RepositorioDrizzleCuentaWhatsApp(
+        baseDeDatos,
+      ).buscarPorIdNumeroTelefono('111111111111111')
       if (!cuenta) {
         throw new Error('cuenta no sembrada')
       }

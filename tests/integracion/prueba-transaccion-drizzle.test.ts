@@ -36,7 +36,7 @@ describe('TransaccionDrizzleMensajeEntrante', () => {
     })
 
     expect(id).toEqual(expect.any(String))
-    expect((await baseDeDatos.select().from(contactos))).toHaveLength(1)
+    expect(await baseDeDatos.select().from(contactos)).toHaveLength(1)
   })
 
   it('revierte los cambios cuando el trabajo lanza un error', async () => {
@@ -48,6 +48,6 @@ describe('TransaccionDrizzleMensajeEntrante', () => {
       }),
     ).rejects.toThrow('fallo forzado para probar el rollback')
 
-    expect((await baseDeDatos.select().from(contactos))).toHaveLength(0)
+    expect(await baseDeDatos.select().from(contactos)).toHaveLength(0)
   })
 })
