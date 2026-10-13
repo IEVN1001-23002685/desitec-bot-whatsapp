@@ -150,7 +150,10 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
 
       const primero = await repositorio.insertarEntrante(entrada)
       const segundo = await repositorio.insertarEntrante(entrada)
-      expect(segundo.id).toBe(primero.id)
+      expect(primero.insertado).toBe(true)
+      expect(primero.id).toEqual(expect.any(String))
+      expect(segundo.insertado).toBe(false)
+      expect(segundo.id).toBeNull()
       return [primero.insertado, segundo.insertado]
     })
 

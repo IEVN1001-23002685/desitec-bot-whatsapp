@@ -137,7 +137,7 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
       (mensaje) => mensaje.idMensajeMeta === entrada.idMensajeMeta,
     )
     if (existente) {
-      return { insertado: false, id: existente.id }
+      return { insertado: false, id: null }
     }
     const mensaje: MensajeAlmacenado = {
       id: `mensaje-${(this.almacen.mensajes.length + 1).toString()}`,
