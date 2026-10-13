@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "vitest run",
+    "test:integracion": "vitest run --config vitest.integracion.config.ts",
     "dev": "tsx watch src/servidor.ts",
     "worker": "tsx watch src/trabajador.ts",
     "build": "tsc -p tsconfig.build.json",
