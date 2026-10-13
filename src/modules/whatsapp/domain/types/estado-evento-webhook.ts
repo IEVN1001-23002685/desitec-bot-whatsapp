@@ -1,0 +1,1 @@
+export type EstadoEventoWebhook = 'recibido' | 'procesado' | 'ignorado' | 'fallido'
