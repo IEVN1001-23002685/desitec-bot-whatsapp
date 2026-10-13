@@ -10,3 +10,11 @@ export const enumeracionEstadoEventoWebhook = pgEnum('estado_evento_webhook', [
   'ignorado',
   'fallido',
 ])
+
+export const enumeracionEstadoSeguimiento = pgEnum('estado_seguimiento', [
+  'pendiente',
+  'en_proceso',
+  'enviado',
+  'cancelado',
+  'fallido',
+])

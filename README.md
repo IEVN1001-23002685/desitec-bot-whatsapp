@@ -59,12 +59,12 @@ Nunca se versionan credenciales reales (`.gitignore` excluye `.env*` salvo `.env
 
 ## Endpoints
 
-| Método | Ruta                 | Descripción                                            |
-| ------ | -------------------- | ------------------------------------------------------ |
-| GET    | `/health`            | Liveness.                                              |
-| GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`).    |
-| POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).          |
-| POST   | `/api/mensajes`      | Envío de texto interno (header `x-api-key-interna`).   |
+| Método | Ruta                 | Descripción                                          |
+| ------ | -------------------- | ---------------------------------------------------- |
+| GET    | `/health`            | Liveness.                                            |
+| GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`).  |
+| POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).        |
+| POST   | `/api/mensajes`      | Envío de texto interno (header `x-api-key-interna`). |
 
 ## Webhook en Meta for Developers
 
