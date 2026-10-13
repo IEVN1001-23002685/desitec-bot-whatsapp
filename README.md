@@ -22,7 +22,9 @@ copia de WSL solo edita archivos — nunca `npm install`/builds dentro de WSL).
 npm install
 npm run typecheck        # tsc --noEmit
 npm run lint             # eslint .
-npm test                 # vitest run
+npm test                 # vitest run (unitarias)
+npm run test:integracion # integracion con PostgreSQL real (requiere docker compose up -d --wait db)
+npx prettier --check .   # verificar formato
 npm run db:generate      # generar migración Drizzle
 npm run db:migrate       # aplicar migraciones
 npm run db:seed          # cargar/actualizar las cuentas de WhatsApp desde .env
@@ -118,6 +120,31 @@ apuntan a `localhost:5432`. Dentro de la red de Compose, `app` y `worker` usan
 `db:migrate` y `db:seed` reintentan la conexión al arrancar, así que también
 funcionan si Postgres tarda unos segundos en aceptar conexiones (cold start).
 
+## Integración continua
+
+El pipeline `.github/workflows/ci.yml` corre en GitHub Actions en cada push/PR:
+`npm ci`, typecheck, lint, `prettier --check`, unitarias, migraciones contra un
+PostgreSQL real, integración contra una BD dedicada `desitec_bot_test` (se crea y
+migra sola) y `npm run build`.
+
+## Verificación end-to-end (Fase 1)
+
+Con `npm run build` correcto y la pila arriba (`docker compose up -d --build`),
+en PowerShell:
+
+```powershell
+Invoke-RestMethod http://localhost:3000/health   # -> estado ok
+```
+
+Enviar un webhook firmado siguiendo el ejemplo de la sección "Probar localmente
+con solicitudes firmadas" y comprobar la persistencia:
+
+```powershell
+docker compose exec db psql -U postgres -d desitec_bot -c "\dt"
+docker compose exec db psql -U postgres -d desitec_bot `
+  -c "select id_wa from contactos; select id_mensaje_meta from mensajes;"
+```
+
 ## Estructura
 
 ```
@@ -130,10 +157,11 @@ src/
     conversations/   BuscarOCrearConversacion, mensajes y transaccion entrante
     pipedrive/       (pendiente, fase posterior)
     followups/       (pendiente, fase posterior)
-tests/               pruebas Vitest (unitarias con fakes + fastify.inject)
+tests/               Vitest: unitarias (fakes + fastify.inject) e integracion (tests/integracion/)
 docs/                arquitectura y reglas de negocio
 drizzle/             migraciones (generadas con npm run db:generate)
 Dockerfile + compose.yaml   imagen de la app y pila local (db/app/worker)
+.github/workflows/ci.yml    pipeline CI
 ```
 
 Ver `docs/architecture.md` y `docs/business-rules.md` para detalles.
@@ -144,4 +172,3 @@ Ver `docs/architecture.md` y `docs/business-rules.md` para detalles.
 - Motor de respuestas / chatbot.
 - Integración con Pipedrive.
 - Worker de seguimientos persistidos en PostgreSQL (skeleton Docker listo).
-- Pipeline CI (`.github/workflows/ci.yml`) y pruebas de integración con PostgreSQL real.

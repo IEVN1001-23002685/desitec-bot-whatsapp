@@ -23,6 +23,7 @@ Reglas de desarrollo para OpenCode en el proyecto **desitec-bot-whatsapp**.
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run lint` — `eslint .`
 - `npm test` — `vitest run` (un solo test: `npx vitest run <ruta>`)
+- `npm run test:integracion` — `vitest run --config vitest.integracion.config.ts`; usa una BD dedicada `desitec_bot_test` que se crea y migra sola (requiere `docker compose up -d --wait db`). Los archivos corren secuenciales (`fileParallelism: false`) porque comparten la misma BD.
 - `npm run db:generate` — `drizzle-kit generate` → `drizzle/`
 - `npm run db:migrate` — `tsx src/shared/db/migrar.ts` (migrador de `drizzle-orm`; usa este en vez de `drizzle-kit migrate`, que en 0.31.x oculta los errores de migración y sale con código 1 sin mensaje). Antes de migrar/sembrar, espera a Postgres con `docker compose up -d --wait db` (el `healthcheck` usa `pg_isready -h 127.0.0.1` por TCP); `db:migrate` y `db:seed` además reintentan la conexión al arrancar.
 
@@ -36,7 +37,7 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 - `noUncheckedIndexedAccess` → el acceso por índice devuelve `T | undefined`; acota antes de usar.
 - Imports relativos en ESM/NodeNext requieren extensión explícita: `import { x } from './a.js'`.
 - Evitar `any` y `as` innecesarios.
-- Estado actual: `tsconfig.json` tiene `"types": []`, por lo que `@types/node` (instalado) **no se carga** automáticamente; al usar `process`/`Buffer`/globals de Node hay que agregar `"node"` a `types` o declarar los tipos explícitamente.
+- Estado actual: `tsconfig.json` tiene `"types": ["node"]`, por lo que los tipos de Node (`process`, `Buffer`, etc.) se cargan automáticamente.
 
 ## Arquitectura
 
@@ -66,6 +67,5 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 
 ## Estructura esperada del repo
 
-Presente: `package.json`, `package-lock.json`, `tsconfig.json`, `.gitignore`, `node_modules/`.
-Creados con la Fase 1: `eslint.config.js`, `.prettierrc`, `.env.example`, `drizzle.config.ts`, `README.md`, `Dockerfile`, `compose.yaml`, `.dockerignore`.
-Pendiente de crear (no lo borres de la planificación): `.github/workflows/ci.yml`.
+Presente: `package.json`, `package-lock.json`, `tsconfig.json`, `.gitignore`, `.gitattributes`, `.prettierignore`, `node_modules/`.
+Creados con la Fase 1: `eslint.config.js`, `.prettierrc`, `.env.example`, `drizzle.config.ts`, `README.md`, `Dockerfile`, `compose.yaml`, `.dockerignore`, `.github/workflows/ci.yml`.
