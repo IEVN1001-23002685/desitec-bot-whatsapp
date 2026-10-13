@@ -1,0 +1,1 @@
+ALTER TABLE "cuentas_whatsapp" ADD COLUMN "token_acceso" text;
