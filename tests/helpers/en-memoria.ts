@@ -18,6 +18,11 @@ import type { RepositorioCuentaWhatsApp } from '../../src/modules/whatsapp/domai
 import type { RepositorioEventoWebhook } from '../../src/modules/whatsapp/domain/ports/repositorio-evento-webhook.js'
 import type { RepositorioEstadoMensaje } from '../../src/modules/whatsapp/domain/ports/repositorio-estado-mensaje.js'
 import type {
+  EntradaEnviarMensaje,
+  ProveedorMensajes,
+  ResultadoEnviarMensaje,
+} from '../../src/modules/whatsapp/domain/ports/proveedor-mensajes.js'
+import type {
   ContextoMensajeEntrante,
   TransaccionMensajeEntrante,
 } from '../../src/modules/whatsapp/application/ports/transaccion-mensaje-entrante.js'
@@ -264,6 +269,30 @@ export class RepositorioEventoWebhookEnMemoria implements RepositorioEventoWebho
       evento.estado = estado
       evento.error = error
     }
+  }
+}
+
+export type ProveedorMensajesFalsoOpciones = {
+  idMensajeMeta?: string
+  error?: Error
+}
+
+export class ProveedorMensajesFalso implements ProveedorMensajes {
+  readonly envios: EntradaEnviarMensaje[] = []
+  private readonly idMensajeMeta: string
+  private readonly error: Error | undefined
+
+  constructor(opciones: ProveedorMensajesFalsoOpciones = {}) {
+    this.idMensajeMeta = opciones.idMensajeMeta ?? 'wamid.SALIENTE.FALSO'
+    this.error = opciones.error
+  }
+
+  async enviar(entrada: EntradaEnviarMensaje): Promise<ResultadoEnviarMensaje> {
+    this.envios.push(entrada)
+    if (this.error) {
+      throw this.error
+    }
+    return { idMensajeMeta: this.idMensajeMeta }
   }
 }
 
