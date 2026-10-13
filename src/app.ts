@@ -6,10 +6,15 @@ import {
   rutasWebhookWhatsApp,
   type OpcionesRutasWebhookWhatsApp,
 } from './modules/whatsapp/presentation/routes/rutas-webhook-whatsapp.js'
+import {
+  rutasMensajes,
+  type OpcionesRutasMensajes,
+} from './modules/whatsapp/presentation/routes/rutas-mensajes.js'
 
 export type OpcionesCrearApp = {
   registrador: FastifyBaseLogger
   webhook: OpcionesRutasWebhookWhatsApp
+  mensajes?: OpcionesRutasMensajes
   bodyLimit?: number
 }
 
@@ -25,6 +30,9 @@ export function crearApp(opciones: OpcionesCrearApp): FastifyInstance {
 
   aplicacion.get('/health', async () => ({ estado: 'ok' }))
   aplicacion.register(rutasWebhookWhatsApp(opciones.webhook))
+  if (opciones.mensajes) {
+    aplicacion.register(rutasMensajes(opciones.mensajes))
+  }
 
   return aplicacion
 }

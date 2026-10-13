@@ -29,6 +29,7 @@ import type {
 import { VerificarWebhookWhatsApp } from '../../src/modules/whatsapp/application/use-cases/verificar-webhook-whatsapp.js'
 import { ResolverCuentaWhatsApp } from '../../src/modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
 import { RegistrarMensajeEntrante } from '../../src/modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
+import { EnviarMensajeSaliente } from '../../src/modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { RecibirEventoWhatsApp } from '../../src/modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
 
 export type MensajeAlmacenado = {
@@ -355,6 +356,9 @@ export type DependenciasAppPruebaWebhook = {
   tokenVerificacion?: string
   secretoApp?: string
   almacen?: AlmacenEnMemoria
+  claveInterna?: string
+  proveedor?: ProveedorMensajes
+  ventanaAtencionActiva?: boolean
 }
 
 export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
@@ -367,6 +371,12 @@ export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
   const eventos = new RepositorioEventoWebhookEnMemoria(almacen)
   const estados = new RepositorioEstadoMensajeEnMemoria(almacen)
   const transaccion = new TransaccionMensajeEntranteEnMemoria(almacen)
+  const proveedor = dependencias.proveedor ?? new ProveedorMensajesFalso()
+  const enviarMensaje = new EnviarMensajeSaliente(cuentas, transaccion, proveedor, {
+    ventanaAtencionActiva: dependencias.ventanaAtencionActiva ?? false,
+  })
+  const claveInterna = dependencias.claveInterna
+  const rutaMensajes = claveInterna ? { enviarMensaje, claveInterna } : undefined
 
   const aplicacion = crearApp({
     registrador,
@@ -381,9 +391,10 @@ export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
       ),
       secretoApp,
     },
+    ...(rutaMensajes ? { mensajes: rutaMensajes } : {}),
   })
 
-  return { app: aplicacion, almacen, tokenVerificacion, secretoApp }
+  return { app: aplicacion, almacen, tokenVerificacion, secretoApp, proveedor }
 }
 
 export function cuentasPrueba(): CuentaWhatsApp[] {

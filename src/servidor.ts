@@ -6,11 +6,13 @@ import { crearRegistrador } from './shared/logging/registrador.js'
 import { VerificarWebhookWhatsApp } from './modules/whatsapp/application/use-cases/verificar-webhook-whatsapp.js'
 import { ResolverCuentaWhatsApp } from './modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
 import { RegistrarMensajeEntrante } from './modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
+import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { RecibirEventoWhatsApp } from './modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
 import { RepositorioDrizzleCuentaWhatsApp } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-cuenta-whatsapp.js'
 import { RepositorioDrizzleEventoWebhook } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-evento-webhook.js'
 import { RepositorioDrizzleEstadoMensaje } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-estado-mensaje.js'
 import { TransaccionDrizzleMensajeEntrante } from './modules/whatsapp/infrastructure/transactions/transaccion-drizzle-mensaje-entrante.js'
+import { ProveedorMetaMensajes } from './modules/whatsapp/infrastructure/providers/proveedor-meta-mensajes.js'
 
 async function principal(): Promise<void> {
   const entorno = cargarVariablesEntorno()
@@ -21,6 +23,17 @@ async function principal(): Promise<void> {
   const eventos = new RepositorioDrizzleEventoWebhook(baseDeDatos)
   const estados = new RepositorioDrizzleEstadoMensaje(baseDeDatos)
   const transaccion = new TransaccionDrizzleMensajeEntrante(baseDeDatos)
+  const proveedorMensajes = new ProveedorMetaMensajes({
+    versionApi: entorno.META_API_VERSION,
+    dryRun: entorno.WHATSAPP_DRY_RUN,
+    registrador,
+  })
+  const enviarMensaje = new EnviarMensajeSaliente(cuentas, transaccion, proveedorMensajes, {
+    ventanaAtencionActiva: entorno.WHATSAPP_VENTANA_ATENCION_ACTIVA,
+  })
+
+  const claveInterna = entorno.API_INTERNAL_KEY
+  const rutaMensajes = claveInterna ? { enviarMensaje, claveInterna } : undefined
 
   const aplicacion = crearApp({
     registrador,
@@ -36,6 +49,7 @@ async function principal(): Promise<void> {
       ),
       secretoApp: entorno.META_APP_SECRET,
     },
+    ...(rutaMensajes ? { mensajes: rutaMensajes } : {}),
   })
 
   const apagar = async (senal: string): Promise<void> => {

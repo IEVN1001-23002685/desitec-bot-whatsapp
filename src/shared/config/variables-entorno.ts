@@ -26,9 +26,10 @@ const esquemaEntorno = z.object({
   DATABASE_URL: z.string().min(1),
   META_APP_SECRET: z.string().min(1),
   META_VERIFY_TOKEN: z.string().min(1),
-  META_ACCESS_TOKEN: z.string().optional(),
   META_API_VERSION: z.string().default('v21.0'),
   WHATSAPP_DRY_RUN: booleanoDeCadena.default(true),
+  WHATSAPP_VENTANA_ATENCION_ACTIVA: booleanoDeCadena.default(true),
+  API_INTERNAL_KEY: z.string().min(1).optional(),
   WEBHOOK_BODY_LIMIT: z.coerce.number().int().positive().default(1_048_576),
   WHATSAPP_ACCOUNTS: z
     .string()
