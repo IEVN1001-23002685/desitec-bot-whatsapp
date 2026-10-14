@@ -43,18 +43,44 @@ export class ProveedorMetaMensajes implements ProveedorMensajes {
 
     let respuesta: Response
     try {
+      let cuerpo: unknown
+      if (entrada.tipo === 'text') {
+        cuerpo = {
+          messaging_product: 'whatsapp',
+          to: entrada.idWa,
+          type: 'text',
+          text: { body: entrada.cuerpo },
+        }
+      } else {
+        cuerpo = {
+          messaging_product: 'whatsapp',
+          to: entrada.idWa,
+          type: 'template',
+          template: {
+            name: entrada.nombrePlantilla,
+            language: { code: entrada.idiomaPlantilla },
+            components:
+              entrada.parametros && entrada.parametros.length > 0
+                ? [
+                    {
+                      type: 'body',
+                      parameters: entrada.parametros.map((p) => ({
+                        type: p.tipo,
+                        text: p.texto,
+                      })),
+                    },
+                  ]
+                : undefined,
+          },
+        }
+      }
       respuesta = await fetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${entrada.tokenAcceso}`,
         },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: entrada.idWa,
-          type: 'text',
-          text: { body: entrada.cuerpo },
-        }),
+        body: JSON.stringify(cuerpo),
         signal: controlador.signal,
       })
     } catch (error) {

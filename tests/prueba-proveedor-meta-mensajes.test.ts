@@ -7,6 +7,7 @@ const entrada = {
   idNumeroTelefono: '111111111111111',
   tokenAcceso: 'token-secreto',
   idWa: '5215512345678',
+  tipo: 'text' as const,
   cuerpo: 'Hola cliente',
 }
 

@@ -67,6 +67,7 @@ export class EnviarMensajeSaliente {
     }
 
     const envio = await this.proveedor.enviar({
+      tipo: 'text',
       idNumeroTelefono: cuenta.idNumeroTelefono,
       tokenAcceso,
       idWa: entrada.idWa,
