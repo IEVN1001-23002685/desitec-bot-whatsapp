@@ -34,6 +34,8 @@ const esquemaEntorno = z.object({
   META_API_VERSION: z.string().default('v21.0'),
   WHATSAPP_DRY_RUN: booleanoDeCadena.default(true),
   WHATSAPP_VENTANA_ATENCION_ACTIVA: booleanoDeCadena.default(true),
+  WHATSAPP_SEGUIMIENTOS_INTERVALO_MS: z.coerce.number().int().positive().default(30_000),
+  WHATSAPP_SEGUIMIENTOS_LOTE: z.coerce.number().int().positive().default(50),
   API_INTERNAL_KEY: cadenaNoVacia,
   WEBHOOK_BODY_LIMIT: z.coerce.number().int().positive().default(1_048_576),
   WHATSAPP_ACCOUNTS: z

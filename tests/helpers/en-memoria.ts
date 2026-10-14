@@ -26,14 +26,21 @@ import type {
   ContextoMensajeEntrante,
   TransaccionMensajeEntrante,
 } from '../../src/modules/whatsapp/application/ports/transaccion-mensaje-entrante.js'
+import type { PlantillaWhatsApp } from '../../src/modules/followups/domain/entities/plantilla-whatsapp.js'
 import type { ReglaSeguimiento } from '../../src/modules/followups/domain/entities/regla-seguimiento.js'
 import type { SeguimientoProgramado } from '../../src/modules/followups/domain/entities/seguimiento-programado.js'
 import type { EstadoSeguimiento } from '../../src/modules/followups/domain/types/estado-seguimiento.js'
+import type { RepositorioPlantilla } from '../../src/modules/followups/domain/ports/repositorio-plantilla.js'
 import type { RepositorioReglaSeguimiento } from '../../src/modules/followups/domain/ports/repositorio-regla-seguimiento.js'
 import type {
   EntradaProgramarSeguimiento,
   RepositorioSeguimientoProgramado,
 } from '../../src/modules/followups/domain/ports/repositorio-seguimiento-programado.js'
+import type {
+  DestinoSeguimiento,
+  RepositorioDestinoSeguimiento,
+} from '../../src/modules/followups/domain/ports/repositorio-destino-seguimiento.js'
+import type { VerificadorEstadoComercial } from '../../src/modules/followups/domain/ports/verificador-estado-comercial.js'
 import { ProgramarSeguimientos } from '../../src/modules/followups/application/use-cases/programar-seguimientos.js'
 import { VerificarWebhookWhatsApp } from '../../src/modules/whatsapp/application/use-cases/verificar-webhook-whatsapp.js'
 import { ResolverCuentaWhatsApp } from '../../src/modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
@@ -236,6 +243,40 @@ export class RepositorioCuentaWhatsAppEnMemoria implements RepositorioCuentaWhat
 
   async listarActivas(): Promise<CuentaWhatsApp[]> {
     return this.cuentas.filter((item) => item.estaActiva)
+  }
+}
+
+export class RepositorioPlantillaEnMemoria implements RepositorioPlantilla {
+  constructor(private readonly plantillas: PlantillaWhatsApp[] = []) {}
+
+  async buscarActivaPorId(id: string): Promise<PlantillaWhatsApp | null> {
+    return this.plantillas.find((plantilla) => plantilla.id === id && plantilla.activa) ?? null
+  }
+
+  async buscarActivaPorCodigo(codigo: string): Promise<PlantillaWhatsApp | null> {
+    return (
+      this.plantillas.find((plantilla) => plantilla.codigo === codigo && plantilla.activa) ?? null
+    )
+  }
+
+  async listarActivas(): Promise<PlantillaWhatsApp[]> {
+    return this.plantillas.filter((plantilla) => plantilla.activa)
+  }
+}
+
+export class RepositorioDestinoSeguimientoEnMemoria implements RepositorioDestinoSeguimiento {
+  constructor(private readonly destinos: Record<string, DestinoSeguimiento> = {}) {}
+
+  async obtenerDestino(idConversacion: string): Promise<DestinoSeguimiento | null> {
+    return this.destinos[idConversacion] ?? null
+  }
+}
+
+export class VerificadorEstadoComercialFalso implements VerificadorEstadoComercial {
+  constructor(private readonly noSeguibles: string[] = []) {}
+
+  async puedeSeguir(idConversacion: string): Promise<boolean> {
+    return !this.noSeguibles.includes(idConversacion)
   }
 }
 

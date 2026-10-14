@@ -9,6 +9,15 @@ type FilaPlantilla = typeof plantillasWhatsApp.$inferSelect
 export class RepositorioDrizzlePlantilla implements RepositorioPlantilla {
   constructor(private readonly baseDeDatos: Transaccion | BaseDeDatos) {}
 
+  async buscarActivaPorId(id: string): Promise<PlantillaWhatsApp | null> {
+    const filas = await this.baseDeDatos
+      .select()
+      .from(plantillasWhatsApp)
+      .where(and(eq(plantillasWhatsApp.id, id), eq(plantillasWhatsApp.activa, true)))
+      .limit(1)
+    return filas[0] ? mapearPlantilla(filas[0]) : null
+  }
+
   async buscarActivaPorCodigo(codigo: string): Promise<PlantillaWhatsApp | null> {
     const filas = await this.baseDeDatos
       .select()

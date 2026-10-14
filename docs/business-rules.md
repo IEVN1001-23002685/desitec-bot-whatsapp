@@ -53,8 +53,29 @@
 - El endpoint `POST /api/mensajes` es interno y exige el header
   `x-api-key-interna` igual a `API_INTERNAL_KEY` (comparación en tiempo constante);
   sin clave configurada la ruta no se registra (404).
-- Pendiente (fase posterior): plantillas aprobadas de Meta fuera de la ventana de
-  24 h y respeto de consentimiento/cancelación.
+- Fuera de la ventana de 24 h solo se puede contactar con **plantillas aprobadas**
+  de Meta; el módulo `followups` las usa para los seguimientos.
+
+## Seguimientos programados
+
+- Un seguimiento se programa por **conversación + regla** (índice único); las
+  reglas activas definen la demora (`demora_horas`) y el contenido (plantilla o
+  `cuerpo` de texto).
+- `POST /api/seguimientos` (interno, `x-api-key-interna`) programa los
+  seguimientos de una conversación a partir de las reglas activas.
+- El worker (`npm run worker`) toma **solo** los `pendiente` con
+  `programado_para <= ahora`, los marca `en_proceso` y luego:
+  - `enviado` si Meta acepta (guarda `id_mensaje_meta` y `enviado_en`),
+  - `fallido` si el envío falla (guarda `error`, **sin** persistir el saliente),
+  - `cancelado` si la regla dejó de estar activa, la conversación no existe o el
+    estado comercial ya no permite continuar (guarda `motivo_cancelacion`).
+- Antes de enviar se **reverifica** la regla activa y el estado comercial
+  (`VerificadorEstadoComercial`); el guard de ventana de 24 h **no** aplica a
+  seguimientos con plantilla, por ser mensajes aprobados.
+- La idempotencia/comparación segura de la clave interna y el uso del token por
+  cuenta son idénticos al envío de `POST /api/mensajes`.
+- Pendiente (fase posterior): pausar/reanudar secuencias según la respuesta del
+  cliente y rellenar parámetros `{{n}}` de las plantillas.
 
 ## Privacidad y logs
 

@@ -49,7 +49,7 @@ export async function crearBaseDeDatosDePrueba(): Promise<void> {
 
 export async function truncarTablas(pool: Pool): Promise<void> {
   await pool.query(
-    'TRUNCATE TABLE eventos_webhook, mensajes, conversaciones, contactos, cuentas_whatsapp RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE seguimientos_programados, reglas_seguimiento, plantillas_whatsapp, eventos_webhook, mensajes, conversaciones, contactos, cuentas_whatsapp RESTART IDENTITY CASCADE',
   )
 }
 
