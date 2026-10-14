@@ -27,6 +27,14 @@ export class RepositorioDrizzleReglaSeguimiento implements RepositorioReglaSegui
       .limit(1)
     return filas[0] ? mapearRegla(filas[0]) : null
   }
+
+  async buscarActivas(): Promise<ReglaSeguimiento[]> {
+    const filas = await this.baseDeDatos
+      .select()
+      .from(reglasSeguimiento)
+      .where(eq(reglasSeguimiento.activa, true))
+    return filas.map(mapearRegla)
+  }
 }
 
 function mapearRegla(fila: FilaRegla): ReglaSeguimiento {
