@@ -33,9 +33,11 @@ function mapearRegla(fila: FilaRegla): ReglaSeguimiento {
   return {
     id: fila.id,
     codigo: fila.codigo,
-    descripcion: undefined,
-    plantillaId: fila.idPlantilla ?? undefined,
-    segundosEspera: fila.demoraHoras * 3600,
+    nombre: fila.nombre,
+    idCuentaWhatsApp: fila.idCuentaWhatsApp,
+    demoraHoras: fila.demoraHoras,
+    idPlantilla: fila.idPlantilla ?? null,
+    cuerpo: fila.cuerpo ?? null,
     activa: fila.activa,
   }
 }
