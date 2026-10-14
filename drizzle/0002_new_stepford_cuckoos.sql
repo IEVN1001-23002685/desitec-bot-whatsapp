@@ -38,16 +38,16 @@ CREATE TABLE "seguimientos_programados" (
 	"motivo_cancelacion" text,
 	"creado_en" timestamp with time zone DEFAULT now() NOT NULL,
 	"actualizado_en" timestamp with time zone DEFAULT now() NOT NULL,
-	"enviado_en" timestamp with time zone,
-	CONSTRAINT "seguimientos_programados_conv_regla_unico" UNIQUE("id_conversacion","id_regla_seguimiento")
+	"enviado_en" timestamp with time zone
 );
 --> statement-breakpoint
+ALTER TABLE "reglas_seguimiento" ADD CONSTRAINT "reglas_seguimiento_id_cuenta_whatsapp_cuentas_whatsapp_id_fk" FOREIGN KEY ("id_cuenta_whatsapp") REFERENCES "public"."cuentas_whatsapp"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "reglas_seguimiento" ADD CONSTRAINT "reglas_seguimiento_id_plantilla_plantillas_whatsapp_id_fk" FOREIGN KEY ("id_plantilla") REFERENCES "public"."plantillas_whatsapp"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "seguimientos_programados" ADD CONSTRAINT "seguimientos_programados_id_conversacion_conversaciones_id_fk" FOREIGN KEY ("id_conversacion") REFERENCES "public"."conversaciones"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "seguimientos_programados" ADD CONSTRAINT "seguimientos_programados_id_regla_seguimiento_reglas_seguimiento_id_fk" FOREIGN KEY ("id_regla_seguimiento") REFERENCES "public"."reglas_seguimiento"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "plantillas_whatsapp_activas_idx" ON "plantillas_whatsapp" USING btree ("activa");--> statement-breakpoint
 CREATE INDEX "reglas_seguimiento_cuenta_idx" ON "reglas_seguimiento" USING btree ("id_cuenta_whatsapp");--> statement-breakpoint
 CREATE INDEX "reglas_seguimiento_activas_idx" ON "reglas_seguimiento" USING btree ("activa");--> statement-breakpoint
 CREATE INDEX "seguimientos_programados_estado_programado_idx" ON "seguimientos_programados" USING btree ("estado","programado_para");--> statement-breakpoint
 CREATE INDEX "seguimientos_programados_conversacion_estado_idx" ON "seguimientos_programados" USING btree ("id_conversacion","estado");--> statement-breakpoint
-ALTER TABLE "reglas_seguimiento" ADD CONSTRAINT "reglas_seguimiento_id_cuenta_whatsapp_cuentas_whatsapp_id_fk" FOREIGN KEY ("id_cuenta_whatsapp") REFERENCES "public"."cuentas_whatsapp"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "reglas_seguimiento" ADD CONSTRAINT "reglas_seguimiento_id_plantilla_plantillas_whatsapp_id_fk" FOREIGN KEY ("id_plantilla") REFERENCES "public"."plantillas_whatsapp"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "seguimientos_programados" ADD CONSTRAINT "seguimientos_programados_id_conversacion_conversaciones_id_fk" FOREIGN KEY ("id_conversacion") REFERENCES "public"."conversaciones"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "seguimientos_programados" ADD CONSTRAINT "seguimientos_programados_id_regla_seguimiento_reglas_seguimiento_id_fk" FOREIGN KEY ("id_regla_seguimiento") REFERENCES "public"."reglas_seguimiento"("id") ON DELETE restrict ON UPDATE no action;
+CREATE UNIQUE INDEX "seguimientos_programados_conv_regla_unico" ON "seguimientos_programados" USING btree ("id_conversacion","id_regla_seguimiento");

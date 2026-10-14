@@ -15,6 +15,13 @@
       "when": 1791911900684,
       "tag": "0001_married_clea",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791998715379,
+      "tag": "0002_new_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }
