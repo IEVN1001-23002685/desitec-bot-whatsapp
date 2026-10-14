@@ -43,7 +43,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
       programadoPara: seguimiento.programadoPara,
       estado: seguimiento.estado as EstadoSeguimiento,
       intentos: seguimiento.intentos,
-    } as any)
+    })
     return seguimiento
   }
 
@@ -67,7 +67,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
       .set({
         estado: enProceso ? 'en_proceso' : 'pendiente',
         actualizadoEn: new Date(),
-      } as any)
+      })
       .where(eq(seguimientosProgramados.id, id))
   }
 
@@ -79,7 +79,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
         enviadoEn: enviadoEn ?? null,
         idMensajeMeta: idMensajeMeta ?? null,
         actualizadoEn: new Date(),
-      } as any)
+      })
       .where(eq(seguimientosProgramados.id, id))
   }
 
@@ -90,7 +90,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
         estado: 'fallido',
         error: error ?? null,
         actualizadoEn: new Date(),
-      } as any)
+      })
       .where(eq(seguimientosProgramados.id, id))
   }
 
@@ -101,7 +101,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
         estado: 'cancelado',
         motivoCancelacion: motivo ?? null,
         actualizadoEn: new Date(),
-      } as any)
+      })
       .where(eq(seguimientosProgramados.id, id))
   }
 
@@ -112,7 +112,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
         estado: 'cancelado',
         motivoCancelacion: motivo ?? null,
         actualizadoEn: new Date(),
-      } as any)
+      })
       .where(
         and(
           eq(seguimientosProgramados.idConversacion, idConversacion),
@@ -138,7 +138,7 @@ export class RepositorioDrizzleSeguimientoProgramado implements RepositorioSegui
       .set({
         estado,
         actualizadoEn: new Date(),
-      } as any)
+      })
       .where(eq(seguimientosProgramados.id, id))
   }
 }

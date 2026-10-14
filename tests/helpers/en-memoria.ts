@@ -26,6 +26,15 @@ import type {
   ContextoMensajeEntrante,
   TransaccionMensajeEntrante,
 } from '../../src/modules/whatsapp/application/ports/transaccion-mensaje-entrante.js'
+import type { ReglaSeguimiento } from '../../src/modules/followups/domain/entities/regla-seguimiento.js'
+import type { SeguimientoProgramado } from '../../src/modules/followups/domain/entities/seguimiento-programado.js'
+import type { EstadoSeguimiento } from '../../src/modules/followups/domain/types/estado-seguimiento.js'
+import type { RepositorioReglaSeguimiento } from '../../src/modules/followups/domain/ports/repositorio-regla-seguimiento.js'
+import type {
+  EntradaProgramarSeguimiento,
+  RepositorioSeguimientoProgramado,
+} from '../../src/modules/followups/domain/ports/repositorio-seguimiento-programado.js'
+import { ProgramarSeguimientos } from '../../src/modules/followups/application/use-cases/programar-seguimientos.js'
 import { VerificarWebhookWhatsApp } from '../../src/modules/whatsapp/application/use-cases/verificar-webhook-whatsapp.js'
 import { ResolverCuentaWhatsApp } from '../../src/modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
 import { RegistrarMensajeEntrante } from '../../src/modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
@@ -57,6 +66,8 @@ export class AlmacenEnMemoria {
   conversaciones: Conversacion[] = []
   mensajes: MensajeAlmacenado[] = []
   eventos: EventoAlmacenado[] = []
+  reglasSeguimiento: ReglaSeguimiento[] = []
+  seguimientosProgramados: SeguimientoProgramado[] = []
   contadores: Record<string, number> = {}
 }
 
@@ -228,6 +239,113 @@ export class RepositorioCuentaWhatsAppEnMemoria implements RepositorioCuentaWhat
   }
 }
 
+export class RepositorioReglaSeguimientoEnMemoria implements RepositorioReglaSeguimiento {
+  constructor(private readonly almacen: AlmacenEnMemoria) {}
+
+  async buscarActivaPorId(id: string): Promise<ReglaSeguimiento | null> {
+    return this.almacen.reglasSeguimiento.find((regla) => regla.id === id && regla.activa) ?? null
+  }
+
+  async buscarActivaPorCodigo(codigo: string): Promise<ReglaSeguimiento | null> {
+    return (
+      this.almacen.reglasSeguimiento.find((regla) => regla.codigo === codigo && regla.activa) ??
+      null
+    )
+  }
+
+  async buscarActivas(): Promise<ReglaSeguimiento[]> {
+    return this.almacen.reglasSeguimiento.filter((regla) => regla.activa)
+  }
+}
+
+export class RepositorioSeguimientoProgramadoEnMemoria implements RepositorioSeguimientoProgramado {
+  constructor(private readonly almacen: AlmacenEnMemoria) {}
+
+  async programar(entrada: EntradaProgramarSeguimiento): Promise<SeguimientoProgramado> {
+    const seguimiento: SeguimientoProgramado = {
+      id: `seguimiento-${(this.almacen.seguimientosProgramados.length + 1).toString()}`,
+      idConversacion: entrada.idConversacion,
+      idReglaSeguimiento: entrada.idReglaSeguimiento,
+      programadoPara: entrada.programadoPara,
+      estado: 'pendiente',
+      intentos: 0,
+      idMensajeMeta: null,
+      error: null,
+      motivoCancelacion: null,
+      enviadoEn: null,
+    }
+    this.almacen.seguimientosProgramados.push(seguimiento)
+    return seguimiento
+  }
+
+  async obtenerPendientesParaProcesar(limite: number): Promise<SeguimientoProgramado[]> {
+    const ahora = Date.now()
+    return this.almacen.seguimientosProgramados
+      .filter(
+        (seguimiento) =>
+          seguimiento.estado === 'pendiente' && seguimiento.programadoPara.getTime() <= ahora,
+      )
+      .slice(0, limite)
+  }
+
+  async marcarEnProceso(id: string, enProceso: boolean): Promise<void> {
+    this.cambiar(id, (seguimiento) => {
+      seguimiento.estado = enProceso ? 'en_proceso' : 'pendiente'
+    })
+  }
+
+  async marcarEnviado(id: string, idMensajeMeta: string, enviadoEn: Date): Promise<void> {
+    this.cambiar(id, (seguimiento) => {
+      seguimiento.estado = 'enviado'
+      seguimiento.idMensajeMeta = idMensajeMeta
+      seguimiento.enviadoEn = enviadoEn
+    })
+  }
+
+  async marcarFallido(id: string, error: string): Promise<void> {
+    this.cambiar(id, (seguimiento) => {
+      seguimiento.estado = 'fallido'
+      seguimiento.error = error
+    })
+  }
+
+  async marcarCancelado(id: string, motivo: string): Promise<void> {
+    this.cambiar(id, (seguimiento) => {
+      seguimiento.estado = 'cancelado'
+      seguimiento.motivoCancelacion = motivo
+    })
+  }
+
+  async cancelarPendientesPorConversacion(idConversacion: string, motivo: string): Promise<number> {
+    let cancelados = 0
+    for (const seguimiento of this.almacen.seguimientosProgramados) {
+      if (seguimiento.idConversacion === idConversacion && seguimiento.estado === 'pendiente') {
+        seguimiento.estado = 'cancelado'
+        seguimiento.motivoCancelacion = motivo
+        cancelados++
+      }
+    }
+    return cancelados
+  }
+
+  async obtenerPorId(id: string): Promise<SeguimientoProgramado | null> {
+    return this.almacen.seguimientosProgramados.find((seguimiento) => seguimiento.id === id) ?? null
+  }
+
+  async cambiarEstado(id: string, estado: EstadoSeguimiento): Promise<void> {
+    this.cambiar(id, (seguimiento) => {
+      seguimiento.estado = estado
+    })
+  }
+
+  private cambiar(id: string, mutar: (seguimiento: SeguimientoProgramado) => void): void {
+    const seguimiento = this.almacen.seguimientosProgramados.find((item) => item.id === id)
+    if (seguimiento) {
+      mutar(seguimiento)
+    }
+  }
+}
+
 export class RepositorioEventoWebhookEnMemoria implements RepositorioEventoWebhook {
   constructor(private readonly almacen: AlmacenEnMemoria) {}
 
@@ -359,12 +477,14 @@ export type DependenciasAppPruebaWebhook = {
   claveInterna?: string
   proveedor?: ProveedorMensajes
   ventanaAtencionActiva?: boolean
+  reglasSeguimiento?: ReglaSeguimiento[]
 }
 
 export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
   const tokenVerificacion = dependencias.tokenVerificacion ?? 'test-verify-token'
   const secretoApp = dependencias.secretoApp ?? 'test-app-secret'
   const almacen = dependencias.almacen ?? new AlmacenEnMemoria()
+  almacen.reglasSeguimiento = dependencias.reglasSeguimiento ?? almacen.reglasSeguimiento
   const registrador = crearRegistrador('silent')
 
   const cuentas = new RepositorioCuentaWhatsAppEnMemoria(dependencias.cuentas)
@@ -377,6 +497,11 @@ export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
   })
   const claveInterna = dependencias.claveInterna
   const rutaMensajes = claveInterna ? { enviarMensaje, claveInterna } : undefined
+  const programarSeguimientos = new ProgramarSeguimientos(
+    new RepositorioReglaSeguimientoEnMemoria(almacen),
+    new RepositorioSeguimientoProgramadoEnMemoria(almacen),
+  )
+  const rutaSeguimientos = claveInterna ? { programarSeguimientos, claveInterna } : undefined
 
   const aplicacion = crearApp({
     registrador,
@@ -392,6 +517,7 @@ export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
       secretoApp,
     },
     ...(rutaMensajes ? { mensajes: rutaMensajes } : {}),
+    ...(rutaSeguimientos ? { seguimientos: rutaSeguimientos } : {}),
   })
 
   return { app: aplicacion, almacen, tokenVerificacion, secretoApp, proveedor }

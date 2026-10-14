@@ -23,18 +23,19 @@ export async function sembrarDatos(): Promise<void> {
       codigo: 'demo',
       idNumeroTelefono: '14155238886',
       nombreComercial: 'Demo Meta',
+      telefonoVisible: '+1 415 523 8886',
       tokenAcceso: 'eaaxxxxxxxxxxxxxxxxxxxxxxxx',
-    } as any)
+    })
     await db.insert(contactos).values({
       id: idContacto,
       idWa: '34666666666',
       nombrePerfil: 'Usuario Demo',
-    } as any)
+    })
     await db.insert(conversaciones).values({
       id: idConversacion,
       idCuentaWhatsApp: idCuenta,
       idContacto: idContacto,
-    } as any)
+    })
   }
 }
 
@@ -70,7 +71,7 @@ export async function sembrarPlantillas(): Promise<void> {
         idPlantilla: idPlantilla,
         cuerpo: 'Seguimiento a las 24 horas',
         activa: true,
-      } as any)
+      })
     }
   }
 }

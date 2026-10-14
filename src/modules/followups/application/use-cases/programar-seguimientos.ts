@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import type { RepositorioReglaSeguimiento } from '../../domain/ports/repositorio-regla-seguimiento.js'
 import type { RepositorioSeguimientoProgramado } from '../../domain/ports/repositorio-seguimiento-programado.js'
 
