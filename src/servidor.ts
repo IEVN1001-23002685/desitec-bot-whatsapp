@@ -8,6 +8,9 @@ import { ResolverCuentaWhatsApp } from './modules/whatsapp/application/use-cases
 import { RegistrarMensajeEntrante } from './modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
 import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { RecibirEventoWhatsApp } from './modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
+import { ProgramarSeguimientos } from './modules/followups/application/use-cases/programar-seguimientos.js'
+import { RepositorioDrizzleReglaSeguimiento } from './modules/followups/infrastructure/repositories/repositorio-drizzle-regla-seguimiento.js'
+import { RepositorioDrizzleSeguimientoProgramado } from './modules/followups/infrastructure/repositories/repositorio-drizzle-seguimiento-programado.js'
 import { RepositorioDrizzleCuentaWhatsApp } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-cuenta-whatsapp.js'
 import { RepositorioDrizzleEventoWebhook } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-evento-webhook.js'
 import { RepositorioDrizzleEstadoMensaje } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-estado-mensaje.js'
@@ -32,8 +35,16 @@ async function principal(): Promise<void> {
     ventanaAtencionActiva: entorno.WHATSAPP_VENTANA_ATENCION_ACTIVA,
   })
 
+  const reglasSeguimiento = new RepositorioDrizzleReglaSeguimiento(baseDeDatos)
+  const seguimientosProgramados = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
+  const programarSeguimientos = new ProgramarSeguimientos(
+    reglasSeguimiento,
+    seguimientosProgramados,
+  )
+
   const claveInterna = entorno.API_INTERNAL_KEY
   const rutaMensajes = claveInterna ? { enviarMensaje, claveInterna } : undefined
+  const rutaSeguimientos = claveInterna ? { programarSeguimientos, claveInterna } : undefined
 
   const aplicacion = crearApp({
     registrador,
@@ -50,6 +61,7 @@ async function principal(): Promise<void> {
       secretoApp: entorno.META_APP_SECRET,
     },
     ...(rutaMensajes ? { mensajes: rutaMensajes } : {}),
+    ...(rutaSeguimientos ? { seguimientos: rutaSeguimientos } : {}),
   })
 
   const apagar = async (senal: string): Promise<void> => {
