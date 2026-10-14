@@ -3,11 +3,12 @@
 Bot de WhatsApp empresarial para Desitec basado en la **Meta WhatsApp Cloud API**,
 **Fastify**, **TypeScript** (Clean/Hexagonal), **PostgreSQL** y **Drizzle ORM**.
 
-Estado actual (Fase 2): recepción segura de webhooks, identificación de tres
+Estado actual (Fase 3): recepción segura de webhooks, identificación de tres
 números empresariales independientes, persistencia de mensajes entrantes y de
-conversaciones, y **envío real de mensajes** de texto por número (token por
-cuenta) a través de un endpoint interno. Los envíos siguen en `WHATSAPP_DRY_RUN`
-por defecto.
+conversaciones, **envío real de mensajes** de texto/plantilla por número (token
+por cuenta) y **motor de seguimientos programados** (plantillas, reglas,
+programación vía endpoint interno y un worker que procesa los vencidos desde
+PostgreSQL). Los envíos siguen en `WHATSAPP_DRY_RUN` por defecto.
 
 ## Stack
 
@@ -32,7 +33,7 @@ npm run db:generate      # generar migración Drizzle
 npm run db:migrate       # aplicar migraciones
 npm run db:seed          # cargar/actualizar las cuentas de WhatsApp desde .env
 npm run dev              # servidor HTTP (tsx watch src/servidor.ts)
-npm run worker           # worker de seguimientos (placeholder)
+npm run worker           # worker de seguimientos (polling sobre PostgreSQL)
 npm run build            # tsc -p tsconfig.build.json -> dist/
 npm run start            # node dist/servidor.js
 ```
@@ -48,8 +49,12 @@ Ver `.env.example`:
 - `WHATSAPP_DRY_RUN` — `true` por defecto; simula el envío sin llamar a Meta.
 - `WHATSAPP_VENTANA_ATENCION_ACTIVA` — `true` por defecto; exige un mensaje
   entrante dentro de 24 h para enviar. Ponlo en `false` solo para pruebas locales.
-- `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes`. Si está vacía,
-  el endpoint no se registra (responde 404).
+- `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS` — intervalo del worker en ms (por defecto
+  `30000`).
+- `WHATSAPP_SEGUIMIENTOS_LOTE` — seguimientos por lote que procesa el worker (por
+  defecto `50`).
+- `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes` y
+  `POST /api/seguimientos`. Si está vacía, los endpoints no se registran (404).
 - `WHATSAPP_ACCOUNTS` — JSON con las cuentas a sembrar (`codigo`, `nombreComercial`,
   `idNumeroTelefono`, `telefonoVisible`, `tokenAcceso`, `activa`). El `tokenAcceso`
   es el token de Meta **por número** (cada línea tiene el suyo).
@@ -65,6 +70,7 @@ Nunca se versionan credenciales reales (`.gitignore` excluye `.env*` salvo `.env
 | GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`).  |
 | POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).        |
 | POST   | `/api/mensajes`      | Envío de texto interno (header `x-api-key-interna`). |
+| POST   | `/api/seguimientos`  | Programa seguimientos de una conversación (interno). |
 
 ## Webhook en Meta for Developers
 
@@ -133,6 +139,37 @@ $env:API_INTERNAL_KEY = '<clave>'   # o pásala con -Clave
 
 Recomendado: validar primero con `WHATSAPP_DRY_RUN=true` (devuelve un id
 `dry-run-...` y guarda el saliente sin llamar a Meta) y después con `false`.
+
+## Seguimientos programados (Fase 3)
+
+El módulo `followups` programa recordatorios persistidos en PostgreSQL y un worker
+separado los envía cuando vencen. No se usan temporizadores en memoria.
+
+- **Plantillas** (`plantillas_whatsapp`): plantillas aprobadas de Meta
+  (`nombre_meta`, `idioma`, `componentes`).
+- **Reglas** (`reglas_seguimiento`): por cuenta, con `demora_horas`, plantilla
+  (`id_plantilla`) o `cuerpo` de texto, y flag `activa`.
+- **Seguimientos** (`seguimientos_programados`): uno por conversación+regla, con
+  `programado_para`, `estado` (`pendiente`/`en_proceso`/`enviado`/`cancelado`/
+  `fallido`), `intentos`, `id_mensaje_meta` y `motivo_cancelacion`.
+
+`POST /api/seguimientos` programa los seguimientos de una conversación:
+
+```jsonc
+// request (header x-api-key-interna)
+{ "idConversacion": "uuid" }
+// 201
+{ "programados": 1 }
+```
+
+El worker (`npm run worker`) hace polling cada `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS`
+y procesa hasta `WHATSAPP_SEGUIMIENTOS_LOTE` seguimientos vencidos:
+reverifica la regla y el estado comercial (`VerificadorEstadoComercial`), resuelve
+la cuenta/contacto de la conversación y envía por **plantilla** (o texto si la
+regla no tiene plantilla). Los envíos con plantilla funcionan fuera de la ventana
+de 24 h; el mensaje saliente se persiste con `tipo` y `estado='enviado'`. Si el
+envío falla se marca `fallido` sin persistir el saliente. El worker cierra
+ordenadamente con `SIGINT`/`SIGTERM`.
 
 ## Docker (PostgreSQL y la pila completa)
 
@@ -203,7 +240,7 @@ src/
     contacts/        BuscarOCrearContacto
     conversations/   BuscarOCrearConversacion, mensajes y transaccion entrante/saliente
     pipedrive/       (pendiente, fase posterior)
-    followups/       (pendiente, fase posterior)
+    followups/       reglas, plantillas y seguimientos programados + casos de uso
 tests/               Vitest: unitarias (fakes + fastify.inject) e integracion (tests/integracion/)
 docs/                arquitectura y reglas de negocio
 scripts/             utilidades manuales (prueba-envio.ps1)
@@ -216,7 +253,7 @@ Ver `docs/architecture.md` y `docs/business-rules.md` para detalles.
 
 ## Pendiente
 
-- Plantillas aprobadas de Meta y ventana de atención automática (más allá del guard con flag).
+- Parámetros de plantilla dinámicos (rellenar variables `{{n}}` de Meta).
+- Pausar la secuencia automáticamente cuando el cliente responde (hoy vía reglas).
 - Motor de respuestas / chatbot.
 - Integración con Pipedrive.
-- Worker de seguimientos persistidos en PostgreSQL (skeleton Docker listo).

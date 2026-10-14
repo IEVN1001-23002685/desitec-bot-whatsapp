@@ -28,7 +28,7 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
 | `contacts`              | Entidad Contacto y su repositorio.                                              |
 | `conversations`         | Entidades Conversación/Mensaje y sus repositorios.                              |
 | `pipedrive` (pendiente) | Integración con Pipedrive (fase posterior).                                     |
-| `followups` (pendiente) | Seguimientos programados (fase posterior).                                      |
+| `followups`             | Plantillas, reglas y seguimientos programados; programación y procesamiento.    |
 
 ## Flujo del webhook (POST /webhooks/whatsapp)
 
@@ -58,6 +58,27 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
 - `ResolverCuentaWhatsApp` — cuenta por `phone_number_id`.
 - `RegistrarMensajeEntrante` — transacción contacto + conversación + mensaje.
 - `BuscarOCrearContacto` / `BuscarOCrearConversacion` — búsqueda y creación idempotentes.
+- `ProgramarSeguimientos` — crea seguimientos para las reglas activas de una conversación.
+- `EnviarSeguimientoProgramado` — reverifica regla/estado comercial y envía por plantilla o texto.
+- `ProcesarSeguimientosPendientes` — orquesta un lote de seguimientos vencidos.
+
+## Flujo del worker (src/trabajador.ts)
+
+Proceso separado del servidor HTTP (sin Fastify). En cada ciclo:
+
+1. `ProcesarSeguimientosPendientes` pide a `RepositorioSeguimientoProgramado` los
+   seguimientos `pendiente` con `programado_para <= ahora` (hasta el tamaño de
+   lote configurado).
+2. Cada seguimiento se marca `en_proceso` y se envía con `EnviarSeguimientoProgramado`:
+   carga la regla activa, verifica `VerificadorEstadoComercial`, resuelve el
+   destino (`RepositorioDestinoSeguimiento`: cuenta + contacto de la conversación)
+   y envía con `ProveedorMensajes` (plantilla si `id_plantilla`, si no texto).
+3. Éxito → `enviado`; fallo de envío → `fallido`; regla inactiva/conversación
+   inexistente/estado comercial no vigente → `cancelado`. El saliente se persiste
+   vía `TransaccionMensajeEntrante` (`insertarSaliente` + `actualizarUltimoMensaje`).
+4. El ciclo se repite cada `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS`, sin solaparse, y
+   se detiene ordenadamente con `SIGINT`/`SIGTERM` (espera el ciclo en curso y
+   cierra el pool).
 
 ## Transaccionalidad
 
@@ -76,5 +97,12 @@ Definido con Drizzle en `shared/db/schema/`. Tablas:
 - `conversaciones` — una por cuenta+contacto (índice único compuesto).
 - `mensajes` — mensajes con `id_mensaje_meta` único (dedupe) y `carga_util` jsonb.
 - `eventos_webhook` — auditoría/idempotencia con `clave_evento` único y estado.
+- `plantillas_whatsapp` — plantillas aprobadas de Meta (`nombre_meta`, `idioma`, `componentes`).
+- `reglas_seguimiento` — reglas por cuenta (demora, plantilla o cuerpo, `activa`).
+- `seguimientos_programados` — seguimientos por conversación+regla (único) con
+  `programado_para`, `estado`, `intentos`, `id_mensaje_meta`, `error`,
+  `motivo_cancelacion` y `enviado_en`.
 
 Las fechas usan `timestamptz`. Las migraciones se generan con `npm run db:generate`.
+El método `ProcesarSeguimientosPendientes` de los repositorios Drizzle filtra por
+`estado`+`programado_para` (índice) para no cargar toda la tabla.
