@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -27,9 +28,9 @@ jobs:
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/desitec_bot_test
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -40,7 +41,7 @@ jobs:
 
       - run: npm run lint
 
-      - run: npx prettier --check .
+      - run: npm run format:check
 
       - run: npm test
 
