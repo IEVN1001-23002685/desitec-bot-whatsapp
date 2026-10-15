@@ -190,6 +190,7 @@ describe('Seguimientos contra PostgreSQL real', () => {
           componentes: { type: 'body', text: 'Hola' },
         })
         .returning()
+      if (!plantilla) throw new Error('no se pudo crear la plantilla')
 
       const [regla] = await baseDeDatos
         .insert(reglasSeguimiento)
@@ -202,6 +203,7 @@ describe('Seguimientos contra PostgreSQL real', () => {
           cuerpo: 'Cuerpo alternativo',
         })
         .returning()
+      if (!regla) throw new Error('no se pudo crear la regla')
 
       return { idConversacion: conversacion.id, idRegla: regla.id }
     })
