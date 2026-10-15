@@ -22,12 +22,14 @@ Reglas de desarrollo para OpenCode en el proyecto **desitec-bot-whatsapp**.
 - `npm run start` — `node dist/servidor.js`
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run lint` — `eslint .`
+- `npm run format` — `prettier --write .` (formatea todo el repo)
+- `npm run format:check` — `prettier --check .` (verificación usada en CI)
 - `npm test` — `vitest run` (un solo test: `npx vitest run <ruta>`)
 - `npm run test:integracion` — `vitest run --config vitest.integracion.config.ts`; usa una BD dedicada `desitec_bot_test` que se crea y migra sola (requiere `docker compose up -d --wait db`). Los archivos corren secuenciales (`fileParallelism: false`) porque comparten la misma BD.
 - `npm run db:generate` — `drizzle-kit generate` → `drizzle/`
 - `npm run db:migrate` — `tsx src/shared/db/migrar.ts` (migrador de `drizzle-orm`; usa este en vez de `drizzle-kit migrate`, que en 0.31.x oculta los errores de migración y sale con código 1 sin mensaje). Antes de migrar/sembrar, espera a Postgres con `docker compose up -d --wait db` (el `healthcheck` usa `pg_isready -h 127.0.0.1` por TCP); `db:migrate` y `db:seed` además reintentan la conexión al arrancar.
 
-No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx prettier --write .`).
+No hay script de `test:watch`. El formato se aplica con `npm run format` y el CI lo verifica con `npm run format:check`; `.editorconfig` fuerza `insert_final_newline`/LF para evitar fallos de Prettier por newline final o CRLF.
 
 ## TypeScript / ESM
 
@@ -70,6 +72,6 @@ No hay scripts de `format` ni `test:watch`; Prettier corre vía CLI (`npx pretti
 
 ## Estructura esperada del repo
 
-Presente: `package.json`, `package-lock.json`, `tsconfig.json`, `.gitignore`, `.gitattributes`, `.prettierignore`, `node_modules/`.
+Presente: `package.json`, `package-lock.json`, `tsconfig.json`, `.gitignore`, `.gitattributes`, `.editorconfig`, `.prettierignore`, `node_modules/`.
 Creados con la Fase 1: `eslint.config.js`, `.prettierrc`, `.env.example`, `drizzle.config.ts`, `README.md`, `Dockerfile`, `compose.yaml`, `.dockerignore`, `.github/workflows/ci.yml`.
 Incluye `scripts/` para utilidades manuales.
