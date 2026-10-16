@@ -28,6 +28,7 @@ function regla(sobrescrituras: Partial<ReglaSeguimiento> = {}): ReglaSeguimiento
     demoraHoras: 24,
     idPlantilla: null,
     cuerpo: 'Hola, sigues interesado?',
+    parametros: [],
     activa: true,
     ...sobrescrituras,
   }
@@ -52,6 +53,9 @@ function destino(): DestinoSeguimiento {
     idNumeroTelefono: '111111111111111',
     tokenAcceso: 'token-1',
     idWa: '5215512345678',
+    nombreContacto: 'Cliente',
+    nombreCuenta: 'Linea Comercial',
+    telefonoVisible: '+5210000000001',
   }
 }
 
@@ -127,6 +131,57 @@ describe('ProcesarSeguimientosPendientes', () => {
     })
     expect(almacen.mensajes).toHaveLength(1)
     expect(almacen.mensajes[0]).toMatchObject({ direccion: 'saliente', tipo: 'template' })
+  })
+
+  it('resuelve los parametros de plantilla con los datos del destino', async () => {
+    const almacen = new AlmacenEnMemoria()
+    almacen.reglasSeguimiento = [
+      regla({
+        idPlantilla: 'plantilla-1',
+        parametros: ['Hola {{nombre}}', '{{cuenta}}', '{{telefono}}', '{{id_wa}}'],
+      }),
+    ]
+    almacen.seguimientosProgramados = [seguimientoPendiente()]
+    const proveedor = new ProveedorMensajesFalso()
+    const procesar = crearProcesador({
+      almacen,
+      reglas: almacen.reglasSeguimiento,
+      plantillas: [plantilla()],
+      destinos: { [CONVERSACION]: destino() },
+      proveedor,
+    })
+
+    const resultado = await procesar.ejecutar()
+
+    expect(resultado.enviados).toBe(1)
+    expect(proveedor.envios[0]).toMatchObject({
+      tipo: 'template',
+      parametros: [
+        { tipo: 'text', texto: 'Hola Cliente' },
+        { tipo: 'text', texto: 'Linea Comercial' },
+        { tipo: 'text', texto: '+5210000000001' },
+        { tipo: 'text', texto: '5215512345678' },
+      ],
+    })
+  })
+
+  it('no envia parametros cuando la regla no los define', async () => {
+    const almacen = new AlmacenEnMemoria()
+    almacen.reglasSeguimiento = [regla({ idPlantilla: 'plantilla-1' })]
+    almacen.seguimientosProgramados = [seguimientoPendiente()]
+    const proveedor = new ProveedorMensajesFalso()
+    const procesar = crearProcesador({
+      almacen,
+      reglas: almacen.reglasSeguimiento,
+      plantillas: [plantilla()],
+      destinos: { [CONVERSACION]: destino() },
+      proveedor,
+    })
+
+    await procesar.ejecutar()
+
+    expect(proveedor.envios[0]?.tipo).toBe('template')
+    expect(proveedor.envios[0]).not.toHaveProperty('parametros')
   })
 
   it('envia un texto cuando la regla no tiene plantilla', async () => {
