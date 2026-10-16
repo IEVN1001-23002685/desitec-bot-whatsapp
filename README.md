@@ -53,6 +53,9 @@ Ver `.env.example`:
   `30000`).
 - `WHATSAPP_SEGUIMIENTOS_LOTE` — seguimientos por lote que procesa el worker (por
   defecto `50`).
+- `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA` — `false` por defecto; al activarlo,
+  un mensaje entrante nuevo pausa (`cancelado`, motivo `respuesta_cliente`) los
+  seguimientos pendientes de esa conversación.
 - `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes` y
   `POST /api/seguimientos`. Si está vacía, los endpoints no se registran (404).
 - `WHATSAPP_ACCOUNTS` — JSON con las cuentas a sembrar (`codigo`, `nombreComercial`,
@@ -148,7 +151,7 @@ separado los envía cuando vencen. No se usan temporizadores en memoria.
 - **Plantillas** (`plantillas_whatsapp`): plantillas aprobadas de Meta
   (`nombre_meta`, `idioma`, `componentes`).
 - **Reglas** (`reglas_seguimiento`): por cuenta, con `demora_horas`, plantilla
-  (`id_plantilla`) o `cuerpo` de texto, y flag `activa`.
+  (`id_plantilla`) o `cuerpo` de texto, `parametros` (jsonb) y flag `activa`.
 - **Seguimientos** (`seguimientos_programados`): uno por conversación+regla, con
   `programado_para`, `estado` (`pendiente`/`en_proceso`/`enviado`/`cancelado`/
   `fallido`), `intentos`, `id_mensaje_meta` y `motivo_cancelacion`.
@@ -166,10 +169,17 @@ El worker (`npm run worker`) hace polling cada `WHATSAPP_SEGUIMIENTOS_INTERVALO_
 y procesa hasta `WHATSAPP_SEGUIMIENTOS_LOTE` seguimientos vencidos:
 reverifica la regla y el estado comercial (`VerificadorEstadoComercial`), resuelve
 la cuenta/contacto de la conversación y envía por **plantilla** (o texto si la
-regla no tiene plantilla). Los envíos con plantilla funcionan fuera de la ventana
-de 24 h; el mensaje saliente se persiste con `tipo` y `estado='enviado'`. Si el
-envío falla se marca `fallido` sin persistir el saliente. El worker cierra
-ordenadamente con `SIGINT`/`SIGTERM`.
+regla no tiene plantilla). Los `parametros` de la regla llenan los `{{1}}`,
+`{{2}}`, ... de la plantilla y admiten placeholders `{{nombre}}`, `{{id_wa}}`,
+`{{telefono}}` y `{{cuenta}}`, resueltos con los datos de la conversación. Los
+envíos con plantilla funcionan fuera de la ventana de 24 h; el mensaje saliente se
+persiste con `tipo` y `estado='enviado'`. Si el envío falla se marca `fallido` sin
+persistir el saliente. El worker cierra ordenadamente con `SIGINT`/`SIGTERM`.
+
+Con `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA=true`, cada mensaje entrante
+**nuevo** (idempotente ante reintentos de Meta) cancela los seguimientos
+`pendiente` de esa conversación con motivo `respuesta_cliente`; los ya `enviado`
+no se tocan y el webhook nunca falla por un error de esta pausa.
 
 ## Docker (PostgreSQL y la pila completa)
 
@@ -253,7 +263,5 @@ Ver `docs/architecture.md` y `docs/business-rules.md` para detalles.
 
 ## Pendiente
 
-- Parámetros de plantilla dinámicos (rellenar variables `{{n}}` de Meta).
-- Pausar la secuencia automáticamente cuando el cliente responde (hoy vía reglas).
 - Motor de respuestas / chatbot.
 - Integración con Pipedrive.

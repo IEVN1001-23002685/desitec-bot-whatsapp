@@ -47,9 +47,15 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
    `BuscarOCrearContacto` → `BuscarOCrearConversacion` (única por cuenta+contacto) →
    `insertarEntrante` con `INSERT ... ON CONFLICT DO NOTHING` sobre
    `id_mensaje_meta` (anti-duplicado).
-8. Los estados (`statuses`) actualizan el estado del mensaje existente si existe.
-9. El servidor responde **200 solo después de persistir**: si algo falla se lanza
-   el error (5xx) para que Meta reintente.
+8. Si el mensaje se insertó (no era duplicado) y
+   `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA` está activo,
+   `PausadorSeguimientosRespuesta` (adapter en `followups/infrastructure/adapters`
+   que implementa el puerto `whatsapp/application/ports/pausador-seguimientos`)
+   cancela los seguimientos `pendiente` de la conversación con motivo
+   `respuesta_cliente`. Es best-effort: un fallo se registra y no rompe el webhook.
+9. Los estados (`statuses`) actualizan el estado del mensaje existente si existe.
+10. El servidor responde **200 solo después de persistir**: si algo falla se lanza
+    el error (5xx) para que Meta reintente.
 
 ## Casos de uso
 
@@ -72,7 +78,10 @@ Proceso separado del servidor HTTP (sin Fastify). En cada ciclo:
 2. Cada seguimiento se marca `en_proceso` y se envía con `EnviarSeguimientoProgramado`:
    carga la regla activa, verifica `VerificadorEstadoComercial`, resuelve el
    destino (`RepositorioDestinoSeguimiento`: cuenta + contacto de la conversación)
-   y envía con `ProveedorMensajes` (plantilla si `id_plantilla`, si no texto).
+   y envía con `ProveedorMensajes` (plantilla si `id_plantilla`, si no texto). Los
+   `parametros` de la regla se interpolan con `interpolarVariables` (helper en
+   `shared/texto`) usando nombre del contacto, `id_wa`, teléfono visible y nombre
+   de la cuenta.
 3. Éxito → `enviado`; fallo de envío → `fallido`; regla inactiva/conversación
    inexistente/estado comercial no vigente → `cancelado`. El saliente se persiste
    vía `TransaccionMensajeEntrante` (`insertarSaliente` + `actualizarUltimoMensaje`).
@@ -98,7 +107,8 @@ Definido con Drizzle en `shared/db/schema/`. Tablas:
 - `mensajes` — mensajes con `id_mensaje_meta` único (dedupe) y `carga_util` jsonb.
 - `eventos_webhook` — auditoría/idempotencia con `clave_evento` único y estado.
 - `plantillas_whatsapp` — plantillas aprobadas de Meta (`nombre_meta`, `idioma`, `componentes`).
-- `reglas_seguimiento` — reglas por cuenta (demora, plantilla o cuerpo, `activa`).
+- `reglas_seguimiento` — reglas por cuenta (demora, plantilla o cuerpo,
+  `parametros` jsonb con los valores de la plantilla, `activa`).
 - `seguimientos_programados` — seguimientos por conversación+regla (único) con
   `programado_para`, `estado`, `intentos`, `id_mensaje_meta`, `error`,
   `motivo_cancelacion` y `enviado_en`.
