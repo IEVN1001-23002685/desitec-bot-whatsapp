@@ -1,0 +1,1 @@
+ALTER TABLE "reglas_seguimiento" ADD COLUMN "parametros" jsonb DEFAULT '[]'::jsonb NOT NULL;
