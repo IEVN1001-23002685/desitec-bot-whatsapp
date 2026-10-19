@@ -46,6 +46,7 @@ function mapearRegla(fila: FilaRegla): ReglaSeguimiento {
     demoraHoras: fila.demoraHoras,
     idPlantilla: fila.idPlantilla ?? null,
     cuerpo: fila.cuerpo ?? null,
+    parametros: fila.parametros ?? [],
     activa: fila.activa,
   }
 }

@@ -17,6 +17,9 @@ export class RepositorioDrizzleDestinoSeguimiento implements RepositorioDestinoS
         idNumeroTelefono: cuentasWhatsApp.idNumeroTelefono,
         tokenAcceso: cuentasWhatsApp.tokenAcceso,
         idWa: contactos.idWa,
+        nombreContacto: contactos.nombrePerfil,
+        nombreCuenta: cuentasWhatsApp.nombreComercial,
+        telefonoVisible: cuentasWhatsApp.telefonoVisible,
       })
       .from(conversaciones)
       .innerJoin(cuentasWhatsApp, eq(conversaciones.idCuentaWhatsApp, cuentasWhatsApp.id))
