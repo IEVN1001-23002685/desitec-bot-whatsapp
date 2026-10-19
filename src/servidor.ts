@@ -8,7 +8,11 @@ import { ResolverCuentaWhatsApp } from './modules/whatsapp/application/use-cases
 import { RegistrarMensajeEntrante } from './modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
 import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { RecibirEventoWhatsApp } from './modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
+import { ProcesarMensajeAutorespuesta } from './modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
+import { RepositorioDrizzleGuionLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-guion-lead.js'
+import { RepositorioDrizzleLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-lead.js'
 import { ProgramarSeguimientos } from './modules/followups/application/use-cases/programar-seguimientos.js'
+import { PausadorSeguimientosRespuesta } from './modules/followups/infrastructure/adapters/pausador-seguimientos-respuesta.js'
 import { RepositorioDrizzleReglaSeguimiento } from './modules/followups/infrastructure/repositories/repositorio-drizzle-regla-seguimiento.js'
 import { RepositorioDrizzleSeguimientoProgramado } from './modules/followups/infrastructure/repositories/repositorio-drizzle-seguimiento-programado.js'
 import { RepositorioDrizzleCuentaWhatsApp } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-cuenta-whatsapp.js'
@@ -45,6 +49,17 @@ async function principal(): Promise<void> {
   const claveInterna = entorno.API_INTERNAL_KEY
   const rutaMensajes = claveInterna ? { enviarMensaje, claveInterna } : undefined
   const rutaSeguimientos = claveInterna ? { programarSeguimientos, claveInterna } : undefined
+  const pausadorSeguimientos = entorno.WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA
+    ? new PausadorSeguimientosRespuesta(seguimientosProgramados)
+    : undefined
+
+  const procesadorAutorespuesta = entorno.WHATSAPP_BOT_ACTIVO
+    ? new ProcesarMensajeAutorespuesta(
+        new RepositorioDrizzleLead(baseDeDatos),
+        new RepositorioDrizzleGuionLead(baseDeDatos),
+        enviarMensaje,
+      )
+    : undefined
 
   const aplicacion = crearApp({
     registrador,
@@ -57,6 +72,8 @@ async function principal(): Promise<void> {
         new RegistrarMensajeEntrante(transaccion),
         estados,
         registrador,
+        pausadorSeguimientos,
+        procesadorAutorespuesta,
       ),
       secretoApp: entorno.META_APP_SECRET,
     },
