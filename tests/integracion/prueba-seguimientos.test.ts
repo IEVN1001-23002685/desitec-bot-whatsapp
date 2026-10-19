@@ -29,7 +29,10 @@ type Escenario = {
   idRegla: string
 }
 
-async function sembrarEscenario(baseDeDatos: BaseDeDatos): Promise<Escenario> {
+async function sembrarEscenario(
+  baseDeDatos: BaseDeDatos,
+  parametros: string[] = [],
+): Promise<Escenario> {
   const cuenta = await new RepositorioDrizzleCuentaWhatsApp(baseDeDatos).buscarPorCodigo(
     'linea-comercial',
   )
@@ -73,6 +76,7 @@ async function sembrarEscenario(baseDeDatos: BaseDeDatos): Promise<Escenario> {
       demoraHoras: 24,
       idPlantilla: plantilla.id,
       cuerpo: 'Seguimiento a las 24 horas',
+      parametros,
     })
     .returning()
   if (!regla) {
@@ -111,6 +115,9 @@ describe('Seguimientos contra PostgreSQL real', () => {
     expect(destino?.idNumeroTelefono).toBe('111111111111111')
     expect(destino?.tokenAcceso).toBe('token-comercial')
     expect(destino?.idWa).toBe('5215512345678')
+    expect(destino?.nombreContacto).toBe('Cliente')
+    expect(destino?.nombreCuenta).toBe('Linea Comercial')
+    expect(destino?.telefonoVisible).toBe('+5210000000001')
 
     const inexistente = await new RepositorioDrizzleDestinoSeguimiento(baseDeDatos).obtenerDestino(
       '00000000-0000-4000-8000-000000000000',
@@ -156,6 +163,35 @@ describe('Seguimientos contra PostgreSQL real', () => {
       .where(eq(mensajes.direccion, 'saliente'))
     expect(salientes).toHaveLength(1)
     expect(salientes[0]?.idMensajeMeta).toBe('wamid.INTEG.SEG.1')
+  })
+
+  it('resuelve los parametros de la regla con los datos reales de la conversacion', async () => {
+    const escenario = await sembrarEscenario(baseDeDatos, ['Hola {{nombre}} de {{cuenta}}'])
+    const seguimientos = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
+    await seguimientos.programar({
+      idConversacion: escenario.idConversacion,
+      idReglaSeguimiento: escenario.idRegla,
+      programadoPara: new Date(Date.now() - 60_000),
+    })
+
+    const proveedor = new ProveedorMensajesFalso()
+    const enviarSeguimiento = new EnviarSeguimientoProgramado(
+      new RepositorioDrizzleReglaSeguimiento(baseDeDatos),
+      new RepositorioDrizzlePlantilla(baseDeDatos),
+      new RepositorioDrizzleDestinoSeguimiento(baseDeDatos),
+      new VerificadorEstadoComercialLocal(),
+      proveedor,
+      new TransaccionDrizzleMensajeEntrante(baseDeDatos),
+    )
+    const procesar = new ProcesarSeguimientosPendientes(seguimientos, enviarSeguimiento)
+
+    const resultado = await procesar.ejecutar({ limite: 10 })
+
+    expect(resultado.enviados).toBe(1)
+    expect(proveedor.envios[0]).toMatchObject({
+      tipo: 'template',
+      parametros: [{ tipo: 'text', texto: 'Hola Cliente de Linea Comercial' }],
+    })
   })
 
   it('marca fallido cuando la cuenta no tiene token de acceso', async () => {
