@@ -15,17 +15,25 @@ import { VerificarWebhookWhatsApp } from '../../src/modules/whatsapp/application
 import { ResolverCuentaWhatsApp } from '../../src/modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
 import { RegistrarMensajeEntrante } from '../../src/modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
 import { RecibirEventoWhatsApp } from '../../src/modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
+import { PausadorSeguimientosRespuesta } from '../../src/modules/followups/infrastructure/adapters/pausador-seguimientos-respuesta.js'
+import { RepositorioDrizzleSeguimientoProgramado } from '../../src/modules/followups/infrastructure/repositories/repositorio-drizzle-seguimiento-programado.js'
 import {
   contactos,
   conversaciones,
   eventosWebhook,
   mensajes,
+  reglasSeguimiento,
 } from '../../src/shared/db/schema/index.js'
+import type { PausadorSeguimientos } from '../../src/modules/whatsapp/application/ports/pausador-seguimientos.js'
 import type { BaseDeDatos } from '../../src/shared/db/tipos.js'
 
 const secretoApp = 'app-secret-123'
 
-function crearAppIntegracion(baseDeDatos: BaseDeDatos, secreto: string): FastifyInstance {
+function crearAppIntegracion(
+  baseDeDatos: BaseDeDatos,
+  secreto: string,
+  pausador?: PausadorSeguimientos,
+): FastifyInstance {
   const registrador = crearRegistrador('silent')
   const cuentas = new RepositorioDrizzleCuentaWhatsApp(baseDeDatos)
   const eventos = new RepositorioDrizzleEventoWebhook(baseDeDatos)
@@ -42,6 +50,7 @@ function crearAppIntegracion(baseDeDatos: BaseDeDatos, secreto: string): Fastify
         new RegistrarMensajeEntrante(transaccion),
         estados,
         registrador,
+        pausador,
       ),
       secretoApp: secreto,
     },
@@ -71,7 +80,11 @@ describe('POST /webhooks/whatsapp con repositorios reales', () => {
   })
 
   async function post(cuerpo: string): Promise<number> {
-    const respuesta = await app.inject({
+    return postEn(app, cuerpo)
+  }
+
+  async function postEn(aplicacion: FastifyInstance, cuerpo: string): Promise<number> {
+    const respuesta = await aplicacion.inject({
       method: 'POST',
       url: '/webhooks/whatsapp',
       headers: {
@@ -175,5 +188,81 @@ describe('POST /webhooks/whatsapp con repositorios reales', () => {
       .from(mensajes)
       .where(eq(mensajes.idMensajeMeta, 'wamid.INTEG.ESTADO.1'))
     expect(filas[0]?.estado).toBe('delivered')
+  })
+
+  it('pausa los seguimientos pendientes cuando el cliente responde', async () => {
+    const seguimientos = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
+    const appConPausa = crearAppIntegracion(
+      baseDeDatos,
+      secretoApp,
+      new PausadorSeguimientosRespuesta(seguimientos),
+    )
+
+    try {
+      const primero = construirCuerpoWebhook({
+        idNumeroTelefono: '111111111111111',
+        messages: [mensajeTexto({ id: 'wamid.INTEG.PAUSA.1', from: '5215512345678' })],
+      })
+      expect(await postEn(appConPausa, primero)).toBe(200)
+
+      const filasConversacion = await baseDeDatos.select().from(conversaciones)
+      const conversacion = filasConversacion[0]
+      if (!conversacion) throw new Error('conversacion no creada')
+
+      const cuenta = await new RepositorioDrizzleCuentaWhatsApp(baseDeDatos).buscarPorCodigo(
+        'linea-comercial',
+      )
+      if (!cuenta) throw new Error('cuenta no sembrada')
+
+      const reglas = await baseDeDatos
+        .insert(reglasSeguimiento)
+        .values([
+          {
+            codigo: 'pausa_respuesta_pendiente',
+            nombre: 'Pausa por respuesta (pendiente)',
+            idCuentaWhatsApp: cuenta.id,
+            demoraHoras: 1,
+            cuerpo: 'Seguimiento pendiente',
+          },
+          {
+            codigo: 'pausa_respuesta_enviado',
+            nombre: 'Pausa por respuesta (enviado)',
+            idCuentaWhatsApp: cuenta.id,
+            demoraHoras: 1,
+            cuerpo: 'Seguimiento ya enviado',
+          },
+        ])
+        .returning()
+      const reglaPendiente = reglas[0]
+      const reglaEnviada = reglas[1]
+      if (!reglaPendiente || !reglaEnviada) throw new Error('no se pudieron crear las reglas')
+
+      const pendiente = await seguimientos.programar({
+        idConversacion: conversacion.id,
+        idReglaSeguimiento: reglaPendiente.id,
+        programadoPara: new Date(Date.now() + 3_600_000),
+      })
+      const yaEnviado = await seguimientos.programar({
+        idConversacion: conversacion.id,
+        idReglaSeguimiento: reglaEnviada.id,
+        programadoPara: new Date(Date.now() + 3_600_000),
+      })
+      await seguimientos.marcarEnviado(yaEnviado.id, 'wamid.INTEG.PAUSA.ENVIADO', new Date())
+
+      const segundo = construirCuerpoWebhook({
+        idNumeroTelefono: '111111111111111',
+        messages: [mensajeTexto({ id: 'wamid.INTEG.PAUSA.2', from: '5215512345678' })],
+      })
+      expect(await postEn(appConPausa, segundo)).toBe(200)
+
+      const pendienteActualizado = await seguimientos.obtenerPorId(pendiente.id)
+      expect(pendienteActualizado?.estado).toBe('cancelado')
+      expect(pendienteActualizado?.motivoCancelacion).toBe('respuesta_cliente')
+
+      const enviadoActualizado = await seguimientos.obtenerPorId(yaEnviado.id)
+      expect(enviadoActualizado?.estado).toBe('enviado')
+    } finally {
+      await appConPausa.close()
+    }
   })
 })

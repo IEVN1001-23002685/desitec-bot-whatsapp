@@ -13,6 +13,7 @@ function regla(sobrescrituras: Partial<ReglaSeguimiento> = {}): ReglaSeguimiento
     demoraHoras: 24,
     idPlantilla: null,
     cuerpo: 'Seguimiento',
+    parametros: [],
     activa: true,
     ...sobrescrituras,
   }

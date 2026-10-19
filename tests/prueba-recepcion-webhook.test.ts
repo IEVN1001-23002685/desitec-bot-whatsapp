@@ -7,6 +7,8 @@ import {
   mensajeTexto,
   cuentasPrueba,
   AlmacenEnMemoria,
+  PausadorSeguimientosFalso,
+  ProcesadorAutorespuestaFalso,
 } from './helpers/en-memoria.js'
 
 const secretoApp = 'app-secret-123'
@@ -273,6 +275,148 @@ describe('POST /webhooks/whatsapp (reprocesamiento y persistencia)', () => {
     expect(almacen.mensajes).toHaveLength(1)
     expect(almacen.mensajes[0]?.tipo).toBe('image')
     expect(almacen.mensajes[0]?.cuerpo).toBeNull()
+    expect(almacen.eventos[0]?.estado).toBe('procesado')
+  })
+})
+
+describe('POST /webhooks/whatsapp (pausa de seguimientos por respuesta)', () => {
+  function prepararApp(pausador: PausadorSeguimientosFalso) {
+    const preparacion = crearAppPrueba({ cuentas: cuentasPrueba(), secretoApp, pausador })
+    preparacion.almacen.contactos.push({
+      id: 'contacto-1',
+      idWa: '5215512345678',
+      nombrePerfil: 'Cliente',
+    })
+    preparacion.almacen.conversaciones.push({
+      id: 'conversacion-1',
+      idCuentaWhatsApp: 'cuenta-comercial',
+      idContacto: 'contacto-1',
+      estado: 'abierta',
+      ultimoMensajeEn: null,
+    })
+    return preparacion
+  }
+
+  async function post(app: FastifyInstance, cuerpo: string): Promise<number> {
+    const respuesta = await app.inject({
+      method: 'POST',
+      url: '/webhooks/whatsapp',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': firmar(cuerpo, secretoApp),
+      },
+      payload: cuerpo,
+    })
+    return respuesta.statusCode
+  }
+
+  it('pausa los seguimientos de la conversacion cuando el cliente responde', async () => {
+    const pausador = new PausadorSeguimientosFalso({ pausados: { 'conversacion-1': 2 } })
+    const { app } = prepararApp(pausador)
+    const cuerpo = construirCuerpoWebhook({
+      idNumeroTelefono: '111111111111111',
+      messages: [mensajeTexto({ id: 'wamid.PAUSA.1', from: '5215512345678' })],
+    })
+
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(pausador.llamadas).toEqual(['conversacion-1'])
+  })
+
+  it('no vuelve a pausar cuando Meta reenvia el mismo webhook', async () => {
+    const pausador = new PausadorSeguimientosFalso()
+    const { app } = prepararApp(pausador)
+    const cuerpo = construirCuerpoWebhook({
+      idNumeroTelefono: '111111111111111',
+      messages: [mensajeTexto({ id: 'wamid.PAUSA.DUP', from: '5215512345678' })],
+    })
+
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(pausador.llamadas).toEqual(['conversacion-1'])
+  })
+
+  it('no interrumpe la recepcion del mensaje si la pausa falla', async () => {
+    const pausador = new PausadorSeguimientosFalso({ error: new Error('bd caida') })
+    const { app, almacen } = prepararApp(pausador)
+    const cuerpo = construirCuerpoWebhook({
+      idNumeroTelefono: '111111111111111',
+      messages: [mensajeTexto({ id: 'wamid.PAUSA.ERROR', from: '5215512345678' })],
+    })
+
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(almacen.mensajes).toHaveLength(1)
+    expect(almacen.eventos[0]?.estado).toBe('procesado')
+  })
+})
+
+describe('POST /webhooks/whatsapp (autorespuesta)', () => {
+  async function post(app: FastifyInstance, cuerpo: string): Promise<number> {
+    const respuesta = await app.inject({
+      method: 'POST',
+      url: '/webhooks/whatsapp',
+      headers: {
+        'content-type': 'application/json',
+        'x-hub-signature-256': firmar(cuerpo, secretoApp),
+      },
+      payload: cuerpo,
+    })
+    return respuesta.statusCode
+  }
+
+  it('invoca el procesador con el mensaje nuevo', async () => {
+    const procesador = new ProcesadorAutorespuestaFalso()
+    const { app } = crearAppPrueba({
+      cuentas: cuentasPrueba(),
+      secretoApp,
+      procesadorAutorespuesta: procesador,
+    })
+    const cuerpo = construirCuerpoWebhook({
+      idNumeroTelefono: '111111111111111',
+      messages: [
+        mensajeTexto({ id: 'wamid.BOT.1', from: '5215512345678', body: 'Hola, quiero cotizar' }),
+      ],
+    })
+
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(procesador.llamadas).toHaveLength(1)
+    expect(procesador.llamadas[0]).toMatchObject({
+      codigoCuenta: 'linea-comercial',
+      idWa: '5215512345678',
+      texto: 'Hola, quiero cotizar',
+    })
+  })
+
+  it('no invoca el procesador cuando Meta reenvia el mismo webhook', async () => {
+    const procesador = new ProcesadorAutorespuestaFalso()
+    const { app } = crearAppPrueba({
+      cuentas: cuentasPrueba(),
+      secretoApp,
+      procesadorAutorespuesta: procesador,
+    })
+    const cuerpo = construirCuerpoWebhook({
+      idNumeroTelefono: '111111111111111',
+      messages: [mensajeTexto({ id: 'wamid.BOT.DUP', from: '5215512345678' })],
+    })
+
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(procesador.llamadas).toHaveLength(1)
+  })
+
+  it('no interrumpe la recepcion si el procesador falla', async () => {
+    const procesador = new ProcesadorAutorespuestaFalso({ error: new Error('bot caido') })
+    const { app, almacen } = crearAppPrueba({
+      cuentas: cuentasPrueba(),
+      secretoApp,
+      procesadorAutorespuesta: procesador,
+    })
+    const cuerpo = construirCuerpoWebhook({
+      idNumeroTelefono: '111111111111111',
+      messages: [mensajeTexto({ id: 'wamid.BOT.ERROR', from: '5215512345678' })],
+    })
+
+    expect(await post(app, cuerpo)).toBe(200)
+    expect(almacen.mensajes).toHaveLength(1)
     expect(almacen.eventos[0]?.estado).toBe('procesado')
   })
 })
