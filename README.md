@@ -56,6 +56,8 @@ Ver `.env.example`:
 - `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA` — `false` por defecto; al activarlo,
   un mensaje entrante nuevo pausa (`cancelado`, motivo `respuesta_cliente`) los
   seguimientos pendientes de esa conversación.
+- `WHATSAPP_BOT_ACTIVO` — `true` por defecto; activa el bot de captura de leads
+  (ver «Bot de captura de leads»).
 - `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes` y
   `POST /api/seguimientos`. Si está vacía, los endpoints no se registran (404).
 - `WHATSAPP_ACCOUNTS` — JSON con las cuentas a sembrar (`codigo`, `nombreComercial`,
@@ -180,6 +182,24 @@ Con `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA=true`, cada mensaje entrante
 **nuevo** (idempotente ante reintentos de Meta) cancela los seguimientos
 `pendiente` de esa conversación con motivo `respuesta_cliente`; los ya `enviado`
 no se tocan y el webhook nunca falla por un error de esta pausa.
+
+## Bot de captura de leads (Fase 4)
+
+Con `WHATSAPP_BOT_ACTIVO=true` (por defecto), cada mensaje entrante **nuevo**
+dispara el flujo de captura del módulo `autorespuestas`:
+
+- El **guion** vive en `guion_flujo_lead` (`clave`, `orden`, `texto`, `activo`) y
+  se siembra con `npm run db:seed`: `bienvenida`, `pedir_nombre`, `pedir_correo`,
+  `correo_invalido`, `pedir_modelos`, `pedir_cantidad`, `cantidad_invalida`,
+  `pedir_ciudad` y `confirmacion`. Se puede editar sin desplegar.
+- Al primer mensaje se crea un **lead** por conversación (`leads`) y se pide el
+  nombre; después correo (validado), modelos, cantidad (entero > 0) y ciudad. Un
+  dato inválido o un mensaje no-texto vuelve a pedir el paso actual.
+- Al completar se guarda `completado_en`, el lead pasa a `listo_pipedrive` y se
+  envía la confirmación; el bot deja de responder esa conversación (la
+  sincronización con Pipedrive llega en una fase posterior).
+- Las respuestas salen por `EnviarMensajeSaliente` (misma ventana de atención y
+  `DRY_RUN`). Un fallo del bot se registra y **no** tumba la recepción del webhook.
 
 ## Docker (PostgreSQL y la pila completa)
 

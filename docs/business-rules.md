@@ -61,6 +61,12 @@
 - Un seguimiento se programa por **conversación + regla** (índice único); las
   reglas activas definen la demora (`demora_horas`) y el contenido (plantilla o
   `cuerpo` de texto).
+- `reglas_seguimiento.parametros` (jsonb, arreglo de textos) define los valores de
+  los `{{1}}`, `{{2}}`, ... de la plantilla, en orden. Cada texto admite
+  placeholders `{{nombre}}`, `{{id_wa}}`, `{{telefono}}` y `{{cuenta}}`, que se
+  resuelven con los datos del destino (contacto + cuenta) antes de enviar; un
+  placeholder desconocido se deja tal cual. Sin `parametros`, el envío va sin
+  componentes de cuerpo (compatible con plantillas sin variables).
 - `POST /api/seguimientos` (interno, `x-api-key-interna`) programa los
   seguimientos de una conversación a partir de las reglas activas.
 - El worker (`npm run worker`) toma **solo** los `pendiente` con
@@ -74,8 +80,27 @@
   seguimientos con plantilla, por ser mensajes aprobados.
 - La idempotencia/comparación segura de la clave interna y el uso del token por
   cuenta son idénticos al envío de `POST /api/mensajes`.
-- Pendiente (fase posterior): pausar/reanudar secuencias según la respuesta del
-  cliente y rellenar parámetros `{{n}}` de las plantillas.
+- Con `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA=true`, un mensaje entrante
+  **nuevo** cancela los seguimientos `pendiente` de esa conversación (motivo
+  `respuesta_cliente`); los `enviado`/`en_proceso` no se tocan. Los reintentos de
+  Meta (evento duplicado) no vuelven a disparar la pausa y un error al pausar no
+  tumba la recepción del webhook.
+
+## Bot de captura de leads
+
+- Con `WHATSAPP_BOT_ACTIVO=true` (default), un mensaje entrante **nuevo** dispara
+  el flujo de captura una sola vez por evento (los reintentos de Meta no duplican
+  respuestas).
+- El contenido de cada respuesta vive en `guion_flujo_lead` (editable sin
+  desplegar). Si falta el texto de una clave, el procesamiento falla de forma
+  controlada (se registra) y no rompe la recepción del webhook.
+- Datos capturados por lead: nombre, correo (formato válido), modelos, cantidad
+  (entero > 0) y ciudad. Un dato inválido o un mensaje no-texto vuelve a pedir el
+  paso actual sin avanzar.
+- Al completar, el lead guarda `completado_en` y pasa a `listo_pipedrive`; el bot
+  deja de responder esa conversación. La sincronización con Pipedrive y los
+  endpoints de handoff llegan en fases posteriores.
+- Las respuestas usan `EnviarMensajeSaliente` (ventana de atención y `DRY_RUN`).
 
 ## Privacidad y logs
 

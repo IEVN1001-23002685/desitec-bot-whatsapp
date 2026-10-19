@@ -29,6 +29,7 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
 | `conversations`         | Entidades Conversación/Mensaje y sus repositorios.                              |
 | `pipedrive` (pendiente) | Integración con Pipedrive (fase posterior).                                     |
 | `followups`             | Plantillas, reglas y seguimientos programados; programación y procesamiento.    |
+| `autorespuestas`        | Flujo de captura de leads: guion editable, máquina de pasos y persistencia.     |
 
 ## Flujo del webhook (POST /webhooks/whatsapp)
 
@@ -53,8 +54,14 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
    que implementa el puerto `whatsapp/application/ports/pausador-seguimientos`)
    cancela los seguimientos `pendiente` de la conversación con motivo
    `respuesta_cliente`. Es best-effort: un fallo se registra y no rompe el webhook.
-9. Los estados (`statuses`) actualizan el estado del mensaje existente si existe.
-10. El servidor responde **200 solo después de persistir**: si algo falla se lanza
+9. Si el mensaje se insertó y `WHATSAPP_BOT_ACTIVO` está activo,
+   `ProcesarMensajeAutorespuesta` (puerto `whatsapp/application/ports/procesador-autorespuesta`)
+   ejecuta la máquina de pasos del flujo (`autorespuestas/domain/services/maquina-flujo-lead`):
+   crea o continúa el `lead` de la conversación, guarda el dato capturado y
+   responde con el texto del guion vía `EnviarMensajeSaliente`. Es best-effort:
+   un fallo se registra y no rompe el webhook.
+10. Los estados (`statuses`) actualizan el estado del mensaje existente si existe.
+11. El servidor responde **200 solo después de persistir**: si algo falla se lanza
     el error (5xx) para que Meta reintente.
 
 ## Casos de uso
@@ -67,6 +74,7 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
 - `ProgramarSeguimientos` — crea seguimientos para las reglas activas de una conversación.
 - `EnviarSeguimientoProgramado` — reverifica regla/estado comercial y envía por plantilla o texto.
 - `ProcesarSeguimientosPendientes` — orquesta un lote de seguimientos vencidos.
+- `ProcesarMensajeAutorespuesta` — captura del lead: crea o continúa el flujo, guarda el paso y responde.
 
 ## Flujo del worker (src/trabajador.ts)
 
@@ -112,6 +120,10 @@ Definido con Drizzle en `shared/db/schema/`. Tablas:
 - `seguimientos_programados` — seguimientos por conversación+regla (único) con
   `programado_para`, `estado`, `intentos`, `id_mensaje_meta`, `error`,
   `motivo_cancelacion` y `enviado_en`.
+- `leads` — un lead por conversación (único) con `nombre`, `correo`, `modelos`,
+  `cantidad`, `ciudad`, `paso_actual`, `estado` y `completado_en`.
+- `guion_flujo_lead` — textos editables del bot (`clave` único, `orden`, `texto`,
+  `activo`); se siembran con `db:seed`.
 
 Las fechas usan `timestamptz`. Las migraciones se generan con `npm run db:generate`.
 El método `ProcesarSeguimientosPendientes` de los repositorios Drizzle filtra por

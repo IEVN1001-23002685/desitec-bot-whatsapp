@@ -44,7 +44,7 @@ No hay script de `test:watch`. El formato se aplica con `npm run format` y el CI
 ## Arquitectura
 
 - Monolito modular (Clean/Hexagonal): un único microservicio desplegable organizado en módulos independientes.
-- Módulos en `src/modules/`: `whatsapp`, `pipedrive`, `contacts`, `conversations`, `followups`. Cada uno con las capas que necesite: `domain` (entidades, tipos, interfaces), `application` (casos de uso), `infrastructure` (persistencia/proveedores externos), `presentation` (rutas/validaciones HTTP).
+- Módulos en `src/modules/`: `whatsapp`, `pipedrive`, `contacts`, `conversations`, `followups`, `autorespuestas`. Cada uno con las capas que necesite: `domain` (entidades, tipos, interfaces), `application` (casos de uso), `infrastructure` (persistencia/proveedores externos), `presentation` (rutas/validaciones HTTP).
 - Regla de dependencias: el `domain` **no** puede depender de Fastify, Drizzle, Meta ni Pipedrive; las dependencias apuntan hacia las capas internas.
 - `src/shared/` para configuración, logging (Pino), errores y base de datos; `src/app.ts`, `src/servidor.ts`, `src/trabajador.ts`; `drizzle/`, `tests/`, `docs/adr/`, `scripts/`.
 - El worker es un proceso separado que procesará seguimientos persistidos en PostgreSQL — no usar temporizadores en memoria como mecanismo de programación.
@@ -52,7 +52,7 @@ No hay script de `test:watch`. El formato se aplica con `npm run format` y el CI
 
 ## Persistencia
 
-- PostgreSQL + Drizzle. Tablas: cuentas empresariales de WhatsApp (`cuentas_whatsapp` incluye `token_acceso` —token de Meta por número—), contactos, conversaciones, mensajes, referencias a persona/deal de Pipedrive, reglas de seguimiento, seguimientos programados, eventos de webhook procesados.
+- PostgreSQL + Drizzle. Tablas: cuentas empresariales de WhatsApp (`cuentas_whatsapp` incluye `token_acceso` —token de Meta por número—), contactos, conversaciones, mensajes, referencias a persona/deal de Pipedrive, reglas de seguimiento, seguimientos programados, eventos de webhook procesados, leads de captura (`leads`) y guion editable del bot (`guion_flujo_lead`).
 - Cada conversación conserva el número empresarial que la originó; un teléfono puede corresponder a varias oportunidades → no asumir unicidad.
 - Fechas con zona horaria; toda relación debe quedar indexada.
 - Cambios de esquema ⇒ generar migración con `npm run db:generate` y aplicar con `db:migrate`.
@@ -67,6 +67,7 @@ No hay script de `test:watch`. El formato se aplica con `npm run format` y el CI
 - **Fase 2 (envío):** el caso de uso `EnviarMensajeSaliente` valida la ventana de atención (flag `WHATSAPP_VENTANA_ATENCION_ACTIVA`) y usa `ProveedorMetaMensajes` (fetch con AbortController). Los salientes se persisten con `direccion='saliente'`, `id_mensaje_meta` y `estado`. Si el envío falla a Meta, **no** se persiste el mensaje saliente.
 - **Endpoint interno:** `POST /api/mensajes` y `POST /api/seguimientos` exigen `x-api-key-interna` igual a `API_INTERNAL_KEY` (comparación en tiempo constante); si no hay `API_INTERNAL_KEY`, las rutas no se registran (404).
 - **Fase 3 (seguimientos):** el módulo `followups` usa tablas `plantillas_whatsapp`, `reglas_seguimiento` y `seguimientos_programados` (una por conversación+regla). `ProgramarSeguimientos` los crea desde las reglas activas; el worker (`npm run worker`) procesa lotes de vencidos con `ProcesarSeguimientosPendientes`/`EnviarSeguimientoProgramado` (reverifica regla activa y `VerificadorEstadoComercial`, resuelve el destino de la conversación, interpola `reglas_seguimiento.parametros` con `{{nombre}}`/`{{id_wa}}`/`{{telefono}}`/`{{cuenta}}` y envía por plantilla o texto). Nunca usar temporizadores en memoria. El worker hace polling cada `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS` (lote `WHATSAPP_SEGUIMIENTOS_LOTE`) y cierra ordenadamente con `SIGINT`/`SIGTERM`. Con `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA=true` (default `false`), un mensaje entrante nuevo pausa los seguimientos `pendiente` de la conversación (motivo `respuesta_cliente`) vía `PausadorSeguimientosRespuesta`, de forma best-effort.
+- **Fase 4 (bot de leads):** el módulo `autorespuestas` captura datos del lead por conversación con el guion editable de `guion_flujo_lead` (sembrado por `db:seed`). `ProcesarMensajeAutorespuesta` crea/actualiza `leads` (nombre, correo validado, modelos, cantidad entero > 0, ciudad) y responde vía `EnviarMensajeSaliente`. Con `WHATSAPP_BOT_ACTIVO=true` (default `true`), el hook en `RecibirEventoWhatsApp` procesa solo mensajes entrantes nuevos, best-effort. Al completar, el lead pasa a `listo_pipedrive` + `completado_en` y el bot deja de responder.
 - No exponer endpoints de webhook que aparenten validar eventos sin validarlos: si la verificación no está implementada, el endpoint queda explícitamente bloqueado.
 - No incluir claves, tokens ni datos personales reales en el repo (ver `.env.example`).
 
