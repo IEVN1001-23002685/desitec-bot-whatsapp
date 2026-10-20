@@ -7,6 +7,7 @@ import {
 } from '../../../../shared/errors/error-de-app.js'
 import type { RepositorioCuentaWhatsApp } from '../../domain/ports/repositorio-cuenta-whatsapp.js'
 import type { ProveedorMensajes } from '../../domain/ports/proveedor-mensajes.js'
+import type { ResolverCredencialCuenta } from '../../domain/ports/resolver-credencial-cuenta.js'
 import type { TransaccionMensajeEntrante } from '../ports/transaccion-mensaje-entrante.js'
 
 const HORAS_VENTANA_ATENCION = 24
@@ -33,6 +34,7 @@ export class EnviarMensajeSaliente {
     private readonly cuentas: RepositorioCuentaWhatsApp,
     private readonly transaccion: TransaccionMensajeEntrante,
     private readonly proveedor: ProveedorMensajes,
+    private readonly credenciales: ResolverCredencialCuenta,
     private readonly opciones: OpcionesEnviarMensajeSaliente,
   ) {}
 
@@ -43,8 +45,12 @@ export class EnviarMensajeSaliente {
     if (!cuenta) {
       throw new ErrorCuentaNoEncontrada()
     }
-    const tokenAcceso = cuenta.tokenAcceso
-    if (!tokenAcceso) {
+    const credencial = this.credenciales.resolver({
+      proveedor: cuenta.proveedor,
+      credencialRef: cuenta.credencialRef,
+      tokenAcceso: cuenta.tokenAcceso,
+    })
+    if (!credencial) {
       throw new ErrorCuentaSinToken()
     }
 
@@ -68,8 +74,9 @@ export class EnviarMensajeSaliente {
 
     const envio = await this.proveedor.enviar({
       tipo: 'text',
+      proveedor: cuenta.proveedor,
       idNumeroTelefono: cuenta.idNumeroTelefono,
-      tokenAcceso,
+      credencial,
       idWa: entrada.idWa,
       cuerpo: entrada.cuerpo,
     })

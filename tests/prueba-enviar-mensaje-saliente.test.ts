@@ -5,6 +5,7 @@ import {
   AlmacenEnMemoria,
   ProveedorMensajesFalso,
   RepositorioCuentaWhatsAppEnMemoria,
+  ResolverCredencialCuentaFalso,
   TransaccionMensajeEntranteEnMemoria,
   cuentasPrueba,
 } from './helpers/en-memoria.js'
@@ -22,6 +23,7 @@ function crearCaso(
     new RepositorioCuentaWhatsAppEnMemoria(opciones.cuentas ?? cuentasPrueba()),
     new TransaccionMensajeEntranteEnMemoria(almacen),
     proveedor,
+    new ResolverCredencialCuentaFalso(),
     { ventanaAtencionActiva: opciones.ventanaAtencionActiva },
   )
 }
@@ -65,7 +67,8 @@ describe('EnviarMensajeSaliente', () => {
     expect(proveedor.envios).toHaveLength(1)
     expect(proveedor.envios[0]).toMatchObject({
       idNumeroTelefono: '111111111111111',
-      tokenAcceso: 'token-comercial',
+      proveedor: 'meta',
+      credencial: 'token-comercial',
       idWa: '5215512345678',
       cuerpo: 'Hola cliente',
     })
