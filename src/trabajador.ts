@@ -6,39 +6,100 @@ import { RepositorioDrizzleDestinoSeguimiento } from './modules/followups/infras
 import { RepositorioDrizzlePlantilla } from './modules/followups/infrastructure/repositories/repositorio-drizzle-plantilla.js'
 import { RepositorioDrizzleReglaSeguimiento } from './modules/followups/infrastructure/repositories/repositorio-drizzle-regla-seguimiento.js'
 import { RepositorioDrizzleSeguimientoProgramado } from './modules/followups/infrastructure/repositories/repositorio-drizzle-seguimiento-programado.js'
+import { PausadorSeguimientosRespuesta } from './modules/followups/infrastructure/adapters/pausador-seguimientos-respuesta.js'
 import { VerificadorEstadoComercialLocal } from './modules/followups/infrastructure/verificadores/verificador-estado-comercial-local.js'
 import { EnviarSeguimientoProgramado } from './modules/followups/application/use-cases/enviar-seguimiento-programado.js'
 import { ProcesarSeguimientosPendientes } from './modules/followups/application/use-cases/procesar-seguimientos-pendientes.js'
+import { ProcesarMensajeAutorespuesta } from './modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
+import { RepositorioDrizzleGuionLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-guion-lead.js'
+import { RepositorioDrizzleLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-lead.js'
+import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
+import { ProcesarEventosWebhookPendientes } from './modules/whatsapp/application/use-cases/procesar-eventos-webhook-pendientes.js'
+import { ProcesarPayloadWhatsApp } from './modules/whatsapp/application/use-cases/procesar-payload-whatsapp.js'
+import { RegistrarMensajeEntrante } from './modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
+import { RegistrarMensajeSalienteHumano } from './modules/whatsapp/application/use-cases/registrar-mensaje-saliente-humano.js'
+import { ResolverCuentaWhatsApp } from './modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
 import { ProveedorMetaMensajes } from './modules/whatsapp/infrastructure/providers/proveedor-meta-mensajes.js'
+import { Proveedor360DialogMensajes } from './modules/whatsapp/infrastructure/providers/proveedor-360dialog-mensajes.js'
+import { EnrutadorProveedorMensajes } from './modules/whatsapp/infrastructure/providers/enrutador-proveedor-mensajes.js'
+import { RepositorioDrizzleCuentaWhatsApp } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-cuenta-whatsapp.js'
+import { RepositorioDrizzleEstadoMensaje } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-estado-mensaje.js'
+import { RepositorioDrizzleEventoWebhook } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-evento-webhook.js'
+import { ResolverCredencialCuentaEntorno } from './modules/whatsapp/infrastructure/resolvers/resolver-credencial-cuenta-entorno.js'
 import { TransaccionDrizzleMensajeEntrante } from './modules/whatsapp/infrastructure/transactions/transaccion-drizzle-mensaje-entrante.js'
 
 const ESPERA_REINTENTO_MS = 100
+const LOTE_EVENTOS = 50
 
 async function principal(): Promise<void> {
   const entorno = cargarVariablesEntorno()
   const registrador = crearRegistrador(entorno.LOG_LEVEL)
   const { baseDeDatos, cerrar } = crearBaseDeDatos(entorno.DATABASE_URL)
 
-  const proveedor = new ProveedorMetaMensajes({
-    versionApi: entorno.META_API_VERSION,
-    dryRun: entorno.WHATSAPP_DRY_RUN,
-    registrador,
+  const proveedor = new EnrutadorProveedorMensajes({
+    meta: new ProveedorMetaMensajes({
+      versionApi: entorno.META_API_VERSION,
+      dryRun: entorno.WHATSAPP_DRY_RUN,
+      registrador,
+    }),
+    '360dialog': new Proveedor360DialogMensajes({
+      baseUrl: entorno.D360_API_BASE_URL,
+      dryRun: entorno.WHATSAPP_DRY_RUN,
+      registrador,
+    }),
   })
+
+  const cuentas = new RepositorioDrizzleCuentaWhatsApp(baseDeDatos)
+  const transaccion = new TransaccionDrizzleMensajeEntrante(baseDeDatos)
+  const seguimientosProgramados = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
+  const pausador = entorno.WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA
+    ? new PausadorSeguimientosRespuesta(seguimientosProgramados)
+    : undefined
+
+  const enviarMensaje = new EnviarMensajeSaliente(
+    cuentas,
+    transaccion,
+    proveedor,
+    new ResolverCredencialCuentaEntorno(),
+    { ventanaAtencionActiva: entorno.WHATSAPP_VENTANA_ATENCION_ACTIVA },
+  )
+  const procesadorAutorespuesta = entorno.WHATSAPP_BOT_ACTIVO
+    ? new ProcesarMensajeAutorespuesta(
+        new RepositorioDrizzleLead(baseDeDatos),
+        new RepositorioDrizzleGuionLead(baseDeDatos),
+        enviarMensaje,
+        entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
+      )
+    : undefined
+
+  const procesarEventos = new ProcesarEventosWebhookPendientes(
+    new RepositorioDrizzleEventoWebhook(baseDeDatos),
+    new ProcesarPayloadWhatsApp(
+      new ResolverCuentaWhatsApp(cuentas),
+      new RegistrarMensajeEntrante(transaccion),
+      new RepositorioDrizzleEstadoMensaje(baseDeDatos),
+      registrador,
+      new RegistrarMensajeSalienteHumano(transaccion),
+      pausador,
+      procesadorAutorespuesta,
+    ),
+    registrador,
+  )
+
   const enviarSeguimiento = new EnviarSeguimientoProgramado(
     new RepositorioDrizzleReglaSeguimiento(baseDeDatos),
     new RepositorioDrizzlePlantilla(baseDeDatos),
     new RepositorioDrizzleDestinoSeguimiento(baseDeDatos),
     new VerificadorEstadoComercialLocal(),
     proveedor,
-    new TransaccionDrizzleMensajeEntrante(baseDeDatos),
+    new ResolverCredencialCuentaEntorno(),
+    transaccion,
   )
-  const procesar = new ProcesarSeguimientosPendientes(
-    new RepositorioDrizzleSeguimientoProgramado(baseDeDatos),
-    enviarSeguimiento,
-  )
+  const procesar = new ProcesarSeguimientosPendientes(seguimientosProgramados, enviarSeguimiento)
 
   const intervalo = entorno.WHATSAPP_SEGUIMIENTOS_INTERVALO_MS
   const lote = entorno.WHATSAPP_SEGUIMIENTOS_LOTE
+  const seguimientosActivos = entorno.WHATSAPP_SEGUIMIENTOS_ACTIVOS
 
   let detenido = false
   let ejecutando = false
@@ -50,9 +111,23 @@ async function principal(): Promise<void> {
     }
     ejecutando = true
     try {
-      const resultado = await procesar.ejecutar({ limite: lote })
-      if (resultado.procesados > 0) {
-        registrador.info(resultado, 'lote de seguimientos procesado')
+      const eventos = await procesarEventos.ejecutar({ limite: LOTE_EVENTOS })
+      if (eventos.procesados > 0 || eventos.fallidos > 0) {
+        registrador.info(eventos, 'eventos de webhook pendientes procesados')
+      }
+    } catch (error) {
+      registrador.error({ error: mensajeDeError(error) }, 'fallo al procesar eventos de webhook')
+    }
+    try {
+      if (!seguimientosActivos) {
+        registrador.warn(
+          'seguimientos desactivados (WHATSAPP_SEGUIMIENTOS_ACTIVOS=false), no se envian',
+        )
+      } else {
+        const resultado = await procesar.ejecutar({ limite: lote })
+        if (resultado.procesados > 0) {
+          registrador.info(resultado, 'lote de seguimientos procesado')
+        }
       }
     } catch (error) {
       registrador.error({ error: mensajeDeError(error) }, 'fallo al procesar seguimientos')
@@ -88,8 +163,14 @@ async function principal(): Promise<void> {
   })
 
   registrador.info(
-    { intervalo, lote, dryRun: entorno.WHATSAPP_DRY_RUN },
-    'worker de seguimientos iniciado',
+    {
+      intervalo,
+      lote,
+      dryRun: entorno.WHATSAPP_DRY_RUN,
+      seguimientosActivos,
+      botActivo: entorno.WHATSAPP_BOT_ACTIVO,
+    },
+    'worker de seguimientos y eventos iniciado',
   )
   void ciclo()
 }
