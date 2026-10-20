@@ -5,6 +5,7 @@ import {
   RepositorioCuentaWhatsAppEnMemoria,
   RepositorioGuionLeadEnMemoria,
   RepositorioLeadEnMemoria,
+  ResolverCredencialCuentaFalso,
   TransaccionMensajeEntranteEnMemoria,
   cuentasPrueba,
   guionLeadPrueba,
@@ -26,7 +27,10 @@ function textoGuion(clave: string): string {
   return entrada.texto
 }
 
-function crearProcesador(entradasGuion: EntradaGuion[] = guionLeadPrueba()) {
+function crearProcesador(
+  entradasGuion: EntradaGuion[] = guionLeadPrueba(),
+  numerosPermitidos: string[] = [],
+) {
   const almacen = new AlmacenEnMemoria()
   const proveedor = new ProveedorMensajesFalso()
   const transaccion = new TransaccionMensajeEntranteEnMemoria(almacen)
@@ -34,18 +38,20 @@ function crearProcesador(entradasGuion: EntradaGuion[] = guionLeadPrueba()) {
     new RepositorioCuentaWhatsAppEnMemoria(cuentasPrueba()),
     transaccion,
     proveedor,
+    new ResolverCredencialCuentaFalso(),
     { ventanaAtencionActiva: false },
   )
   const procesar = new ProcesarMensajeAutorespuesta(
     new RepositorioLeadEnMemoria(almacen),
     new RepositorioGuionLeadEnMemoria(entradasGuion),
     enviarMensaje,
+    numerosPermitidos,
   )
   return { almacen, proveedor, procesar }
 }
 
-function entrada(texto: string | null): EntradaProcesarAutorespuesta {
-  return { idConversacion: CONVERSACION, codigoCuenta: CUENTA, idWa: WA, texto }
+function entrada(texto: string | null, idWa = WA): EntradaProcesarAutorespuesta {
+  return { idConversacion: CONVERSACION, codigoCuenta: CUENTA, idWa, texto }
 }
 
 describe('ProcesarMensajeAutorespuesta', () => {
@@ -85,7 +91,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
     })
     expect(almacen.leads[0]?.completadoEn).not.toBeNull()
     expect(proveedor.envios).toHaveLength(6)
-    expect(proveedor.envios[5]?.cuerpo).toBe(textoGuion('confirmacion'))
+    expect(proveedor.envios[5]).toMatchObject({ tipo: 'text', cuerpo: textoGuion('confirmacion') })
   })
 
   it('vuelve a pedir el correo cuando es invalido sin avanzar', async () => {
@@ -101,7 +107,10 @@ describe('ProcesarMensajeAutorespuesta', () => {
       pasoActual: 'correo',
       estado: 'capturando',
     })
-    expect(proveedor.envios[2]?.cuerpo).toBe(textoGuion('correo_invalido'))
+    expect(proveedor.envios[2]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('correo_invalido'),
+    })
   })
 
   it('vuelve a pedir el paso actual cuando el mensaje no es de texto', async () => {
@@ -112,7 +121,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
 
     expect(almacen.leads[0]).toMatchObject({ pasoActual: 'nombre', estado: 'capturando' })
     expect(almacen.leads[0]?.nombre).toBeNull()
-    expect(proveedor.envios[1]?.cuerpo).toBe(textoGuion('pedir_nombre'))
+    expect(proveedor.envios[1]).toMatchObject({ tipo: 'text', cuerpo: textoGuion('pedir_nombre') })
   })
 
   it('no responde cuando el lead ya salio de la captura', async () => {
@@ -133,5 +142,26 @@ describe('ProcesarMensajeAutorespuesta', () => {
     const { procesar } = crearProcesador([])
 
     await expect(procesar.procesar(entrada('Hola'))).rejects.toThrow('bienvenida')
+  })
+
+  it('no activa el bot cuando el numero remitente no esta permitido', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador(guionLeadPrueba(), ['4772905770'])
+
+    await procesar.procesar(entrada('Hola'))
+
+    expect(almacen.leads).toHaveLength(0)
+    expect(proveedor.envios).toHaveLength(0)
+  })
+
+  it('activa el bot cuando el numero permitido coincide con formato internacional', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador(guionLeadPrueba(), [
+      '+52 477 290 5770',
+    ])
+
+    await procesar.procesar(entrada('Hola', '5214772905770'))
+
+    expect(almacen.leads).toHaveLength(1)
+    expect(proveedor.envios).toHaveLength(1)
+    expect(proveedor.envios[0]).toMatchObject({ idWa: '5214772905770' })
   })
 })

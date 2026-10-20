@@ -11,6 +11,7 @@ import {
   firmar,
   mensajeTexto,
   ProveedorMensajesFalso,
+  ResolverCredencialCuentaFalso,
 } from '../helpers/en-memoria.js'
 import { RepositorioDrizzleCuentaWhatsApp } from '../../src/modules/whatsapp/infrastructure/repositories/repositorio-drizzle-cuenta-whatsapp.js'
 import { RepositorioDrizzleEventoWebhook } from '../../src/modules/whatsapp/infrastructure/repositories/repositorio-drizzle-evento-webhook.js'
@@ -47,9 +48,15 @@ function crearAppIntegracion(
   const eventos = new RepositorioDrizzleEventoWebhook(baseDeDatos)
   const estados = new RepositorioDrizzleEstadoMensaje(baseDeDatos)
   const transaccion = new TransaccionDrizzleMensajeEntrante(baseDeDatos)
-  const enviarMensaje = new EnviarMensajeSaliente(cuentas, transaccion, proveedor, {
-    ventanaAtencionActiva: false,
-  })
+  const enviarMensaje = new EnviarMensajeSaliente(
+    cuentas,
+    transaccion,
+    proveedor,
+    new ResolverCredencialCuentaFalso(),
+    {
+      ventanaAtencionActiva: false,
+    },
+  )
   const procesadorAutorespuesta = new ProcesarMensajeAutorespuesta(
     new RepositorioDrizzleLead(baseDeDatos),
     new RepositorioDrizzleGuionLead(baseDeDatos),
@@ -156,7 +163,7 @@ describe('Captura de leads contra PostgreSQL real', () => {
     })
     expect(filasLead[0]?.completadoEn).not.toBeNull()
     expect(proveedor.envios).toHaveLength(6)
-    expect(proveedor.envios[5]?.cuerpo).toBe(textoGuion('confirmacion'))
+    expect(proveedor.envios[5]).toMatchObject({ tipo: 'text', cuerpo: textoGuion('confirmacion') })
   })
 
   it('vuelve a pedir el correo invalido sin avanzar el paso', async () => {
@@ -166,6 +173,9 @@ describe('Captura de leads contra PostgreSQL real', () => {
 
     const filasLead = await baseDeDatos.select().from(leads)
     expect(filasLead[0]).toMatchObject({ correo: null, pasoActual: 'correo', estado: 'capturando' })
-    expect(proveedor.envios[2]?.cuerpo).toBe(textoGuion('correo_invalido'))
+    expect(proveedor.envios[2]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('correo_invalido'),
+    })
   })
 })
