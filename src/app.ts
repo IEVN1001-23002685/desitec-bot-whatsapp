@@ -7,6 +7,10 @@ import {
   type OpcionesRutasWebhookWhatsApp,
 } from './modules/whatsapp/presentation/routes/rutas-webhook-whatsapp.js'
 import {
+  rutasWebhook360Dialog,
+  type OpcionesRutasWebhook360Dialog,
+} from './modules/whatsapp/presentation/routes/rutas-webhook-360dialog.js'
+import {
   rutasMensajes,
   type OpcionesRutasMensajes,
 } from './modules/whatsapp/presentation/routes/rutas-mensajes.js'
@@ -17,7 +21,8 @@ import {
 
 export type OpcionesCrearApp = {
   registrador: FastifyBaseLogger
-  webhook: OpcionesRutasWebhookWhatsApp
+  webhook?: OpcionesRutasWebhookWhatsApp
+  webhook360?: OpcionesRutasWebhook360Dialog
   mensajes?: OpcionesRutasMensajes
   seguimientos?: OpcionesRutasSeguimientos
   bodyLimit?: number
@@ -34,7 +39,12 @@ export function crearApp(opciones: OpcionesCrearApp): FastifyInstance {
   registrarManejadorErrores(aplicacion)
 
   aplicacion.get('/health', async () => ({ estado: 'ok' }))
-  aplicacion.register(rutasWebhookWhatsApp(opciones.webhook))
+  if (opciones.webhook) {
+    aplicacion.register(rutasWebhookWhatsApp(opciones.webhook))
+  }
+  if (opciones.webhook360) {
+    aplicacion.register(rutasWebhook360Dialog(opciones.webhook360))
+  }
   if (opciones.mensajes) {
     aplicacion.register(rutasMensajes(opciones.mensajes))
   }
