@@ -1,0 +1,1286 @@
+{
+  "id": "6c2eafb4-a856-4498-81d5-f4d39c79b451",
+  "prevId": "9e54b628-3c7e-4b34-9a2a-4bd9e2112a88",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.cuentas_whatsapp": {
+      "name": "cuentas_whatsapp",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_comercial": {
+          "name": "nombre_comercial",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_numero_telefono": {
+          "name": "id_numero_telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefono_visible": {
+          "name": "telefono_visible",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_acceso": {
+          "name": "token_acceso",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proveedor": {
+          "name": "proveedor",
+          "type": "proveedor_mensajeria",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'meta'"
+        },
+        "credencial_ref": {
+          "name": "credencial_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "webhook_secret_ref": {
+          "name": "webhook_secret_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "esta_activa": {
+          "name": "esta_activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "cuentas_whatsapp_activas_idx": {
+          "name": "cuentas_whatsapp_activas_idx",
+          "columns": [
+            {
+              "expression": "esta_activa",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "cuentas_whatsapp_codigo_unique": {
+          "name": "cuentas_whatsapp_codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "codigo"
+          ]
+        },
+        "cuentas_whatsapp_id_numero_telefono_unique": {
+          "name": "cuentas_whatsapp_id_numero_telefono_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id_numero_telefono"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contactos": {
+      "name": "contactos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "id_wa": {
+          "name": "id_wa",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_perfil": {
+          "name": "nombre_perfil",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "contactos_id_wa_unique": {
+          "name": "contactos_id_wa_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id_wa"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.conversaciones": {
+      "name": "conversaciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "id_cuenta_whatsapp": {
+          "name": "id_cuenta_whatsapp",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_contacto": {
+          "name": "id_contacto",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_conversacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'abierta'"
+        },
+        "ultimo_mensaje_en": {
+          "name": "ultimo_mensaje_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "conversaciones_cuenta_contacto_uk": {
+          "name": "conversaciones_cuenta_contacto_uk",
+          "columns": [
+            {
+              "expression": "id_cuenta_whatsapp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id_contacto",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "conversaciones_contacto_idx": {
+          "name": "conversaciones_contacto_idx",
+          "columns": [
+            {
+              "expression": "id_contacto",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "conversaciones_id_cuenta_whatsapp_cuentas_whatsapp_id_fk": {
+          "name": "conversaciones_id_cuenta_whatsapp_cuentas_whatsapp_id_fk",
+          "tableFrom": "conversaciones",
+          "tableTo": "cuentas_whatsapp",
+          "columnsFrom": [
+            "id_cuenta_whatsapp"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "conversaciones_id_contacto_contactos_id_fk": {
+          "name": "conversaciones_id_contacto_contactos_id_fk",
+          "tableFrom": "conversaciones",
+          "tableTo": "contactos",
+          "columnsFrom": [
+            "id_contacto"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mensajes": {
+      "name": "mensajes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "id_conversacion": {
+          "name": "id_conversacion",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_cuenta_whatsapp": {
+          "name": "id_cuenta_whatsapp",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "direccion": {
+          "name": "direccion",
+          "type": "direccion_mensaje",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_mensaje_meta": {
+          "name": "id_mensaje_meta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cuerpo": {
+          "name": "cuerpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "carga_util": {
+          "name": "carga_util",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "marca_tiempo_meta": {
+          "name": "marca_tiempo_meta",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "mensajes_conversacion_idx": {
+          "name": "mensajes_conversacion_idx",
+          "columns": [
+            {
+              "expression": "id_conversacion",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mensajes_cuenta_idx": {
+          "name": "mensajes_cuenta_idx",
+          "columns": [
+            {
+              "expression": "id_cuenta_whatsapp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mensajes_creados_idx": {
+          "name": "mensajes_creados_idx",
+          "columns": [
+            {
+              "expression": "creado_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "mensajes_id_conversacion_conversaciones_id_fk": {
+          "name": "mensajes_id_conversacion_conversaciones_id_fk",
+          "tableFrom": "mensajes",
+          "tableTo": "conversaciones",
+          "columnsFrom": [
+            "id_conversacion"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "mensajes_id_cuenta_whatsapp_cuentas_whatsapp_id_fk": {
+          "name": "mensajes_id_cuenta_whatsapp_cuentas_whatsapp_id_fk",
+          "tableFrom": "mensajes",
+          "tableTo": "cuentas_whatsapp",
+          "columnsFrom": [
+            "id_cuenta_whatsapp"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "mensajes_id_mensaje_meta_unique": {
+          "name": "mensajes_id_mensaje_meta_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id_mensaje_meta"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plantillas_whatsapp": {
+      "name": "plantillas_whatsapp",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_meta": {
+          "name": "nombre_meta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idioma": {
+          "name": "idioma",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'es'"
+        },
+        "categoria": {
+          "name": "categoria",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "componentes": {
+          "name": "componentes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "plantillas_whatsapp_activas_idx": {
+          "name": "plantillas_whatsapp_activas_idx",
+          "columns": [
+            {
+              "expression": "activa",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantillas_whatsapp_codigo_unique": {
+          "name": "plantillas_whatsapp_codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.reglas_seguimiento": {
+      "name": "reglas_seguimiento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_cuenta_whatsapp": {
+          "name": "id_cuenta_whatsapp",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "demora_horas": {
+          "name": "demora_horas",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_plantilla": {
+          "name": "id_plantilla",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cuerpo": {
+          "name": "cuerpo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "parametros": {
+          "name": "parametros",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "reglas_seguimiento_cuenta_idx": {
+          "name": "reglas_seguimiento_cuenta_idx",
+          "columns": [
+            {
+              "expression": "id_cuenta_whatsapp",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "reglas_seguimiento_activas_idx": {
+          "name": "reglas_seguimiento_activas_idx",
+          "columns": [
+            {
+              "expression": "activa",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "reglas_seguimiento_id_cuenta_whatsapp_cuentas_whatsapp_id_fk": {
+          "name": "reglas_seguimiento_id_cuenta_whatsapp_cuentas_whatsapp_id_fk",
+          "tableFrom": "reglas_seguimiento",
+          "tableTo": "cuentas_whatsapp",
+          "columnsFrom": [
+            "id_cuenta_whatsapp"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "reglas_seguimiento_id_plantilla_plantillas_whatsapp_id_fk": {
+          "name": "reglas_seguimiento_id_plantilla_plantillas_whatsapp_id_fk",
+          "tableFrom": "reglas_seguimiento",
+          "tableTo": "plantillas_whatsapp",
+          "columnsFrom": [
+            "id_plantilla"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "reglas_seguimiento_codigo_unique": {
+          "name": "reglas_seguimiento_codigo_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "codigo"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.seguimientos_programados": {
+      "name": "seguimientos_programados",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "id_conversacion": {
+          "name": "id_conversacion",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_regla_seguimiento": {
+          "name": "id_regla_seguimiento",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "programado_para": {
+          "name": "programado_para",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_seguimiento",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "intentos": {
+          "name": "intentos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "id_mensaje_meta": {
+          "name": "id_mensaje_meta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_cancelacion": {
+          "name": "motivo_cancelacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "enviado_en": {
+          "name": "enviado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "seguimientos_programados_estado_programado_idx": {
+          "name": "seguimientos_programados_estado_programado_idx",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "programado_para",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "seguimientos_programados_conversacion_estado_idx": {
+          "name": "seguimientos_programados_conversacion_estado_idx",
+          "columns": [
+            {
+              "expression": "id_conversacion",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "seguimientos_programados_conv_regla_unico": {
+          "name": "seguimientos_programados_conv_regla_unico",
+          "columns": [
+            {
+              "expression": "id_conversacion",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "id_regla_seguimiento",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "seguimientos_programados_id_conversacion_conversaciones_id_fk": {
+          "name": "seguimientos_programados_id_conversacion_conversaciones_id_fk",
+          "tableFrom": "seguimientos_programados",
+          "tableTo": "conversaciones",
+          "columnsFrom": [
+            "id_conversacion"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "seguimientos_programados_id_regla_seguimiento_reglas_seguimiento_id_fk": {
+          "name": "seguimientos_programados_id_regla_seguimiento_reglas_seguimiento_id_fk",
+          "tableFrom": "seguimientos_programados",
+          "tableTo": "reglas_seguimiento",
+          "columnsFrom": [
+            "id_regla_seguimiento"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.eventos_webhook": {
+      "name": "eventos_webhook",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "clave_evento": {
+          "name": "clave_evento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fuente": {
+          "name": "fuente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'whatsapp'"
+        },
+        "tipo_objeto": {
+          "name": "tipo_objeto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_evento_webhook",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'recibido'"
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "carga_util_original": {
+          "name": "carga_util_original",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recibido_en": {
+          "name": "recibido_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "procesado_en": {
+          "name": "procesado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "eventos_webhook_estado_idx": {
+          "name": "eventos_webhook_estado_idx",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "eventos_webhook_recibidos_idx": {
+          "name": "eventos_webhook_recibidos_idx",
+          "columns": [
+            {
+              "expression": "recibido_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "eventos_webhook_clave_evento_unique": {
+          "name": "eventos_webhook_clave_evento_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "clave_evento"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.leads": {
+      "name": "leads",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "id_conversacion": {
+          "name": "id_conversacion",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "correo": {
+          "name": "correo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modelos": {
+          "name": "modelos",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cantidad": {
+          "name": "cantidad",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ciudad": {
+          "name": "ciudad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paso_actual": {
+          "name": "paso_actual",
+          "type": "paso_lead",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'nombre'"
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_lead",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'capturando'"
+        },
+        "completado_en": {
+          "name": "completado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "leads_estado_idx": {
+          "name": "leads_estado_idx",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "leads_id_conversacion_conversaciones_id_fk": {
+          "name": "leads_id_conversacion_conversaciones_id_fk",
+          "tableFrom": "leads",
+          "tableTo": "conversaciones",
+          "columnsFrom": [
+            "id_conversacion"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "leads_id_conversacion_unique": {
+          "name": "leads_id_conversacion_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id_conversacion"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.guion_flujo_lead": {
+      "name": "guion_flujo_lead",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "clave": {
+          "name": "clave",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "orden": {
+          "name": "orden",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "guion_flujo_lead_clave_unique": {
+          "name": "guion_flujo_lead_clave_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "clave"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.direccion_mensaje": {
+      "name": "direccion_mensaje",
+      "schema": "public",
+      "values": [
+        "entrante",
+        "saliente"
+      ]
+    },
+    "public.estado_conversacion": {
+      "name": "estado_conversacion",
+      "schema": "public",
+      "values": [
+        "abierta",
+        "cerrada"
+      ]
+    },
+    "public.estado_evento_webhook": {
+      "name": "estado_evento_webhook",
+      "schema": "public",
+      "values": [
+        "recibido",
+        "procesado",
+        "ignorado",
+        "fallido"
+      ]
+    },
+    "public.estado_lead": {
+      "name": "estado_lead",
+      "schema": "public",
+      "values": [
+        "capturando",
+        "listo_pipedrive",
+        "en_asesor",
+        "seguimiento"
+      ]
+    },
+    "public.estado_seguimiento": {
+      "name": "estado_seguimiento",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "en_proceso",
+        "enviado",
+        "cancelado",
+        "fallido"
+      ]
+    },
+    "public.paso_lead": {
+      "name": "paso_lead",
+      "schema": "public",
+      "values": [
+        "nombre",
+        "correo",
+        "modelos",
+        "cantidad",
+        "ciudad"
+      ]
+    },
+    "public.proveedor_mensajeria": {
+      "name": "proveedor_mensajeria",
+      "schema": "public",
+      "values": [
+        "meta",
+        "360dialog"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
