@@ -2,7 +2,8 @@ import { Pool } from 'pg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { esperarBaseDeDatos } from '../../src/shared/db/esperar-bd.js'
-import { cuentasWhatsApp } from '../../src/shared/db/schema/index.js'
+import { cuentasWhatsApp, guionFlujoLead } from '../../src/shared/db/schema/index.js'
+import { GUION_FLUJO_LEAD_INICIAL } from '../../src/shared/db/guion-flujo-lead-inicial.js'
 import { cuentasPrueba } from '../helpers/en-memoria.js'
 import type { BaseDeDatos } from '../../src/shared/db/tipos.js'
 
@@ -49,8 +50,17 @@ export async function crearBaseDeDatosDePrueba(): Promise<void> {
 
 export async function truncarTablas(pool: Pool): Promise<void> {
   await pool.query(
-    'TRUNCATE TABLE seguimientos_programados, reglas_seguimiento, plantillas_whatsapp, eventos_webhook, mensajes, conversaciones, contactos, cuentas_whatsapp RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE seguimientos_programados, reglas_seguimiento, plantillas_whatsapp, leads, guion_flujo_lead, eventos_webhook, mensajes, conversaciones, contactos, cuentas_whatsapp RESTART IDENTITY CASCADE',
   )
+}
+
+export async function sembrarGuionLead(baseDeDatos: BaseDeDatos): Promise<void> {
+  for (const entrada of GUION_FLUJO_LEAD_INICIAL) {
+    await baseDeDatos
+      .insert(guionFlujoLead)
+      .values(entrada)
+      .onConflictDoNothing({ target: guionFlujoLead.clave })
+  }
 }
 
 export async function sembrarCuentas(baseDeDatos: BaseDeDatos): Promise<void> {
@@ -61,6 +71,9 @@ export async function sembrarCuentas(baseDeDatos: BaseDeDatos): Promise<void> {
       idNumeroTelefono: cuenta.idNumeroTelefono,
       telefonoVisible: cuenta.telefonoVisible,
       tokenAcceso: cuenta.tokenAcceso,
+      proveedor: cuenta.proveedor,
+      credencialRef: cuenta.credencialRef,
+      webhookSecretRef: cuenta.webhookSecretRef,
       estaActiva: cuenta.estaActiva,
     })
   }
