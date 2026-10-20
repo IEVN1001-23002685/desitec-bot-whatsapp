@@ -1,14 +1,17 @@
 # desitec-bot-whatsapp
 
-Bot de WhatsApp empresarial para Desitec basado en la **Meta WhatsApp Cloud API**,
-**Fastify**, **TypeScript** (Clean/Hexagonal), **PostgreSQL** y **Drizzle ORM**.
+Bot de WhatsApp empresarial para Desitec basado en la **360dialog WhatsApp API**
+(con soporte para la **Meta WhatsApp Cloud API**), **Fastify**,
+**TypeScript** (Clean/Hexagonal), **PostgreSQL** y **Drizzle ORM**.
 
-Estado actual (Fase 3): recepción segura de webhooks, identificación de tres
+Estado actual (Fase 5b): recepción segura de webhooks, identificación de tres
 números empresariales independientes, persistencia de mensajes entrantes y de
-conversaciones, **envío real de mensajes** de texto/plantilla por número (token
-por cuenta) y **motor de seguimientos programados** (plantillas, reglas,
-programación vía endpoint interno y un worker que procesa los vencidos desde
-PostgreSQL). Los envíos siguen en `WHATSAPP_DRY_RUN` por defecto.
+conversaciones, **envío real de mensajes** de texto/plantilla por número con
+**proveedor seleccionable** (`meta`/`360dialog`) y credenciales resueltas por
+cuenta, **motor de seguimientos programados** (plantillas, reglas, programación
+vía endpoint interno y un worker que procesa los vencidos desde PostgreSQL) y
+**webhook 360dialog con inbox asíncrono** para Coexistence (ecos de asesor y
+eventos de sincronización). Los envíos siguen en `WHATSAPP_DRY_RUN` por defecto.
 
 ## Stack
 
@@ -33,7 +36,7 @@ npm run db:generate      # generar migración Drizzle
 npm run db:migrate       # aplicar migraciones
 npm run db:seed          # cargar/actualizar las cuentas de WhatsApp desde .env
 npm run dev              # servidor HTTP (tsx watch src/servidor.ts)
-npm run worker           # worker de seguimientos (polling sobre PostgreSQL)
+npm run worker           # worker: eventos de webhook + seguimientos (polling sobre PostgreSQL)
 npm run build            # tsc -p tsconfig.build.json -> dist/
 npm run start            # node dist/servidor.js
 ```
@@ -43,12 +46,20 @@ npm run start            # node dist/servidor.js
 Ver `.env.example`:
 
 - `DATABASE_URL`
-- `META_APP_SECRET` — valida `X-Hub-Signature-256`.
-- `META_VERIFY_TOKEN` — reto GET de verificación.
+- `PROVEEDOR_MENSAJERIA_DEFECTO` — proveedor de mensajería para cuentas nuevas sin
+  proveedor declarado: `meta` o `360dialog` (por defecto `360dialog`).
+- `D360_API_BASE_URL` — URL base de 360dialog (por defecto
+  `https://waba-v2.360dialog.io`).
+- `META_APP_SECRET` — valida `X-Hub-Signature-256`. Obligatorio solo si alguna
+  cuenta usa el proveedor `meta`.
+- `META_VERIFY_TOKEN` — reto GET de verificación. Obligatorio solo si alguna cuenta
+  usa el proveedor `meta`.
 - `META_API_VERSION` — versión de la Graph API (por defecto `v21.0`).
-- `WHATSAPP_DRY_RUN` — `true` por defecto; simula el envío sin llamar a Meta.
+- `WHATSAPP_DRY_RUN` — `true` por defecto; simula el envío sin llamar al proveedor.
 - `WHATSAPP_VENTANA_ATENCION_ACTIVA` — `true` por defecto; exige un mensaje
   entrante dentro de 24 h para enviar. Ponlo en `false` solo para pruebas locales.
+- `WHATSAPP_SEGUIMIENTOS_ACTIVOS` — `false` por defecto; mientras esté en `false`,
+  el worker no procesa ni envía seguimientos.
 - `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS` — intervalo del worker en ms (por defecto
   `30000`).
 - `WHATSAPP_SEGUIMIENTOS_LOTE` — seguimientos por lote que procesa el worker (por
@@ -56,26 +67,38 @@ Ver `.env.example`:
 - `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA` — `false` por defecto; al activarlo,
   un mensaje entrante nuevo pausa (`cancelado`, motivo `respuesta_cliente`) los
   seguimientos pendientes de esa conversación.
-- `WHATSAPP_BOT_ACTIVO` — `true` por defecto; activa el bot de captura de leads
+- `WHATSAPP_BOT_ACTIVO` — `false` por defecto; activa el bot de captura de leads
   (ver «Bot de captura de leads»).
+- `WHATSAPP_BOT_NUMEROS_PERMITIDOS` — lista separada por comas de números que
+  pueden activar el bot. Vacía = cualquier remitente. La comparación ignora `+`,
+  espacios y la lada mexicana `52`/`521` (ver «Bot de captura de leads»).
 - `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes` y
   `POST /api/seguimientos`. Si está vacía, los endpoints no se registran (404).
 - `WHATSAPP_ACCOUNTS` — JSON con las cuentas a sembrar (`codigo`, `nombreComercial`,
-  `idNumeroTelefono`, `telefonoVisible`, `tokenAcceso`, `activa`). El `tokenAcceso`
-  es el token de Meta **por número** (cada línea tiene el suyo).
+  `idNumeroTelefono`, `telefonoVisible`, `proveedor`, `credencialRef`,
+  `webhookSecretRef`, `activa`, y `tokenAcceso` solo para cuentas `meta` durante la
+  transición). `credencialRef`/`webhookSecretRef` **nombran** variables de entorno
+  (p. ej. `D360_API_KEY_LINEA_COMERCIAL`) cuyo valor es el secreto; los secretos
+  nunca se guardan en PostgreSQL. Ver `docs/360dialog-setup.md`.
 - `WEBHOOK_BODY_LIMIT` — límite de cuerpo HTTP (bytes).
 
 Nunca se versionan credenciales reales (`.gitignore` excluye `.env*` salvo `.env.example`).
 
 ## Endpoints
 
-| Método | Ruta                 | Descripción                                          |
-| ------ | -------------------- | ---------------------------------------------------- |
-| GET    | `/health`            | Liveness.                                            |
-| GET    | `/webhooks/whatsapp` | Verificación del webhook de Meta (`hub.challenge`).  |
-| POST   | `/webhooks/whatsapp` | Eventos de WhatsApp (firma HMAC obligatoria).        |
-| POST   | `/api/mensajes`      | Envío de texto interno (header `x-api-key-interna`). |
-| POST   | `/api/seguimientos`  | Programa seguimientos de una conversación (interno). |
+| Método | Ruta                  | Descripción                                                      |
+| ------ | --------------------- | ---------------------------------------------------------------- |
+| GET    | `/health`             | Liveness.                                                        |
+| GET    | `/webhooks/whatsapp`  | Verificación del webhook de Meta (`hub.challenge`).              |
+| POST   | `/webhooks/whatsapp`  | Eventos de WhatsApp de Meta (firma HMAC obligatoria).            |
+| POST   | `/webhooks/360dialog` | Eventos de 360dialog/Coexistence (`X-Webhook-Token` por cuenta). |
+| POST   | `/api/mensajes`       | Envío de texto interno (header `x-api-key-interna`).             |
+| POST   | `/api/seguimientos`   | Programa seguimientos de una conversación (interno).             |
+
+La ruta de Meta solo se registra cuando hay al menos una cuenta con proveedor
+`meta`; la de 360dialog, cuando hay al menos una cuenta `360dialog`. Ambas
+comparten la lógica de negocio (`ProcesarPayloadWhatsApp`); solo cambia la
+autenticación y, en 360dialog, el evento se persiste y se procesa en el worker.
 
 ## Webhook en Meta for Developers
 
@@ -87,6 +110,38 @@ Nunca se versionan credenciales reales (`.gitignore` excluye `.env*` salvo `.env
 
 Cuándo Meta llame al `GET`, el servidor responderá el `hub.challenge` solo si el
 `hub.verify_token` coincide (comparación en tiempo constante).
+
+## Webhook en 360dialog (Coexistence)
+
+1. En el panel de 360dialog, configura la URL
+   `https://<tu-dominio>/webhooks/360dialog` para cada línea.
+2. Genera un secreto por línea y guárdalo **solo** en la variable de entorno a la
+   que apunta `webhookSecretRef` de esa cuenta en `WHATSAPP_ACCOUNTS`
+   (p. ej. `D360_WEBHOOK_SECRET_LINEA_COMERCIAL`). No hay secreto global: la
+   cuenta se resuelve por `metadata.phone_number_id` y el token se compara en
+   tiempo constante. Token ausente/incorrecto o número desconocido → 401.
+3. 360dialog enviará la cabecera `X-Webhook-Token` en cada POST.
+4. El endpoint **no procesa** en la petición: persiste el evento (`recibido`) y
+   responde 200 (`{ "recibido": true }`). El worker (`npm run worker`) drena los
+   pendientes con `ProcesarEventosWebhookPendientes` y aplica la misma lógica que
+   Meta (entrantes, estados, bot), además de:
+   - `smb_message_echoes` → se guarda como saliente humano y pausa los
+     seguimientos pendientes con motivo `respuesta_asesor` (los ecos **no**
+     disparan el bot).
+   - `smb_app_state_sync` / `history` → `ignorado` (sin acciones comerciales).
+5. Duplicados (mismo cuerpo) devuelven 200 sin duplicar el evento; si el worker
+   falla, el evento queda `fallido` y se reintenta en el siguiente ciclo.
+
+Ver `docs/360dialog-setup.md` para la configuración completa inicial.
+
+También puedes probar el endpoint con un token de línea (PowerShell):
+
+```powershell
+$body = '{"id":"evt-1","event":"smb_app_state_sync","data":{"metadata":{"display_phone_number":"+5210000000000","phone_number_id":"111111111111111"},"state_sync":[]}}'
+Invoke-WebRequest -Method Post -Uri http://localhost:3000/webhooks/360dialog `
+  -Headers @{ 'Content-Type' = 'application/json'; 'X-Webhook-Token' = '<secreto-linea>' } `
+  -Body $body
+```
 
 ## Probar localmente con solicitudes firmadas
 
@@ -121,8 +176,9 @@ Los logs no registran tokens, firmas ni números completos (métricas y
 
 - Header `x-api-key-interna` igual a `API_INTERNAL_KEY` (comparación en tiempo
   constante). Sin `API_INTERNAL_KEY` configurada, la ruta no existe (404).
-- `WHATSAPP_DRY_RUN=false` y un `tokenAcceso` real para la cuenta (guardado por
-  `npm run db:seed`).
+- `WHATSAPP_DRY_RUN=false` y una credencial real resuelta para la cuenta (vía
+  `credencialRef`, p. ej. `D360_API_KEY_LINEA_COMERCIAL`; las cuentas `meta`
+  conservan `tokenAcceso`).
 - Con `WHATSAPP_VENTANA_ATENCION_ACTIVA=true`, debe existir un mensaje entrante
   dentro de las últimas 24 h; si no, responde 409 `WINDOW_CLOSED`.
 
@@ -143,7 +199,7 @@ $env:API_INTERNAL_KEY = '<clave>'   # o pásala con -Clave
 ```
 
 Recomendado: validar primero con `WHATSAPP_DRY_RUN=true` (devuelve un id
-`dry-run-...` y guarda el saliente sin llamar a Meta) y después con `false`.
+`dry-run-...` y guarda el saliente sin llamar al proveedor) y después con `false`.
 
 ## Seguimientos programados (Fase 3)
 
@@ -167,8 +223,10 @@ separado los envía cuando vencen. No se usan temporizadores en memoria.
 { "programados": 1 }
 ```
 
-El worker (`npm run worker`) hace polling cada `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS`
-y procesa hasta `WHATSAPP_SEGUIMIENTOS_LOTE` seguimientos vencidos:
+El worker (`npm run worker`) hace polling cada `WHATSAPP_SEGUIMIENTOS_INTERVALO_MS`,
+drena los eventos de webhook pendientes (360dialog) y, si
+`WHATSAPP_SEGUIMIENTOS_ACTIVOS=true`, procesa hasta `WHATSAPP_SEGUIMIENTOS_LOTE`
+seguimientos vencidos:
 reverifica la regla y el estado comercial (`VerificadorEstadoComercial`), resuelve
 la cuenta/contacto de la conversación y envía por **plantilla** (o texto si la
 regla no tiene plantilla). Los `parametros` de la regla llenan los `{{1}}`,
@@ -179,13 +237,15 @@ persiste con `tipo` y `estado='enviado'`. Si el envío falla se marca `fallido` 
 persistir el saliente. El worker cierra ordenadamente con `SIGINT`/`SIGTERM`.
 
 Con `WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA=true`, cada mensaje entrante
-**nuevo** (idempotente ante reintentos de Meta) cancela los seguimientos
-`pendiente` de esa conversación con motivo `respuesta_cliente`; los ya `enviado`
-no se tocan y el webhook nunca falla por un error de esta pausa.
+**nuevo** (idempotente ante reintentos) cancela los seguimientos `pendiente` de
+esa conversación con motivo `respuesta_cliente`; un eco del asesor
+(`smb_message_echoes` de Coexistence) los cancela siempre con motivo
+`respuesta_asesor`. Los ya `enviado` no se tocan y el webhook nunca falla por un
+error de esta pausa.
 
 ## Bot de captura de leads (Fase 4)
 
-Con `WHATSAPP_BOT_ACTIVO=true` (por defecto), cada mensaje entrante **nuevo**
+Con `WHATSAPP_BOT_ACTIVO=true`, cada mensaje entrante **nuevo**
 dispara el flujo de captura del módulo `autorespuestas`:
 
 - El **guion** vive en `guion_flujo_lead` (`clave`, `orden`, `texto`, `activo`) y
@@ -200,6 +260,11 @@ dispara el flujo de captura del módulo `autorespuestas`:
   sincronización con Pipedrive llega en una fase posterior).
 - Las respuestas salen por `EnviarMensajeSaliente` (misma ventana de atención y
   `DRY_RUN`). Un fallo del bot se registra y **no** tumba la recepción del webhook.
+- Con `WHATSAPP_BOT_NUMEROS_PERMITIDOS` no vacía, el bot **solo** responde a esos
+  remitentes; el resto se registra pero no recibe respuestas. Los números se
+  normalizan (sin `+`/espacios y sin lada `52`/`521`), así que `4772905770`
+  coincide con `+52 1 477 290 5770`. Para pruebas locales con una sola línea usa
+  un `idNumeroTelefono` placeholder hasta conectar el webhook real de 360dialog.
 
 ## Docker (PostgreSQL y la pila completa)
 
@@ -250,7 +315,7 @@ docker compose exec db psql -U postgres -d desitec_bot `
   -c "select id_wa from contactos; select id_mensaje_meta from mensajes;"
 ```
 
-Probar un envío (requiere `API_INTERNAL_KEY` y, en real, `tokenAcceso` + `DRY_RUN=false`):
+Probar un envío (requiere `API_INTERNAL_KEY` y, en real, credencial resuelta + `DRY_RUN=false`):
 
 ```powershell
 $env:API_INTERNAL_KEY = '<clave>'
@@ -279,9 +344,9 @@ Dockerfile + compose.yaml   imagen de la app y pila local (db/app/worker)
 .github/workflows/ci.yml    pipeline CI
 ```
 
-Ver `docs/architecture.md` y `docs/business-rules.md` para detalles.
+Ver `docs/architecture.md`, `docs/business-rules.md` y `docs/360dialog-setup.md`
+para detalles.
 
 ## Pendiente
 
-- Motor de respuestas / chatbot.
 - Integración con Pipedrive.
