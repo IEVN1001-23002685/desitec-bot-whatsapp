@@ -8,6 +8,8 @@ import { ResolverCuentaWhatsApp } from './modules/whatsapp/application/use-cases
 import { RegistrarMensajeEntrante } from './modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
 import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { RecibirEventoWhatsApp } from './modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
+import { RecibirEvento360Dialog } from './modules/whatsapp/application/use-cases/recibir-evento-360dialog.js'
+import { RegistrarMensajeSalienteHumano } from './modules/whatsapp/application/use-cases/registrar-mensaje-saliente-humano.js'
 import { ProcesarMensajeAutorespuesta } from './modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
 import { RepositorioDrizzleGuionLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-guion-lead.js'
 import { RepositorioDrizzleLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-lead.js'
@@ -20,6 +22,10 @@ import { RepositorioDrizzleEventoWebhook } from './modules/whatsapp/infrastructu
 import { RepositorioDrizzleEstadoMensaje } from './modules/whatsapp/infrastructure/repositories/repositorio-drizzle-estado-mensaje.js'
 import { TransaccionDrizzleMensajeEntrante } from './modules/whatsapp/infrastructure/transactions/transaccion-drizzle-mensaje-entrante.js'
 import { ProveedorMetaMensajes } from './modules/whatsapp/infrastructure/providers/proveedor-meta-mensajes.js'
+import { Proveedor360DialogMensajes } from './modules/whatsapp/infrastructure/providers/proveedor-360dialog-mensajes.js'
+import { EnrutadorProveedorMensajes } from './modules/whatsapp/infrastructure/providers/enrutador-proveedor-mensajes.js'
+import { ResolverCredencialCuentaEntorno } from './modules/whatsapp/infrastructure/resolvers/resolver-credencial-cuenta-entorno.js'
+import { ResolverSecretoWebhookEntorno } from './modules/whatsapp/infrastructure/resolvers/resolver-secreto-webhook-entorno.js'
 
 async function principal(): Promise<void> {
   const entorno = cargarVariablesEntorno()
@@ -30,14 +36,28 @@ async function principal(): Promise<void> {
   const eventos = new RepositorioDrizzleEventoWebhook(baseDeDatos)
   const estados = new RepositorioDrizzleEstadoMensaje(baseDeDatos)
   const transaccion = new TransaccionDrizzleMensajeEntrante(baseDeDatos)
-  const proveedorMensajes = new ProveedorMetaMensajes({
-    versionApi: entorno.META_API_VERSION,
-    dryRun: entorno.WHATSAPP_DRY_RUN,
-    registrador,
+  const proveedorMensajes = new EnrutadorProveedorMensajes({
+    meta: new ProveedorMetaMensajes({
+      versionApi: entorno.META_API_VERSION,
+      dryRun: entorno.WHATSAPP_DRY_RUN,
+      registrador,
+    }),
+    '360dialog': new Proveedor360DialogMensajes({
+      baseUrl: entorno.D360_API_BASE_URL,
+      dryRun: entorno.WHATSAPP_DRY_RUN,
+      registrador,
+    }),
   })
-  const enviarMensaje = new EnviarMensajeSaliente(cuentas, transaccion, proveedorMensajes, {
-    ventanaAtencionActiva: entorno.WHATSAPP_VENTANA_ATENCION_ACTIVA,
-  })
+  const resolverCredenciales = new ResolverCredencialCuentaEntorno()
+  const enviarMensaje = new EnviarMensajeSaliente(
+    cuentas,
+    transaccion,
+    proveedorMensajes,
+    resolverCredenciales,
+    {
+      ventanaAtencionActiva: entorno.WHATSAPP_VENTANA_ATENCION_ACTIVA,
+    },
+  )
 
   const reglasSeguimiento = new RepositorioDrizzleReglaSeguimiento(baseDeDatos)
   const seguimientosProgramados = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
@@ -58,25 +78,47 @@ async function principal(): Promise<void> {
         new RepositorioDrizzleLead(baseDeDatos),
         new RepositorioDrizzleGuionLead(baseDeDatos),
         enviarMensaje,
+        entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
       )
+    : undefined
+
+  const secretoApp = entorno.META_APP_SECRET
+  const tokenVerificacion = entorno.META_VERIFY_TOKEN
+  const usaMeta = entorno.WHATSAPP_ACCOUNTS.some((cuenta) => cuenta.proveedor === 'meta')
+  const usa360Dialog = entorno.WHATSAPP_ACCOUNTS.some((cuenta) => cuenta.proveedor === '360dialog')
+  const registrarSalienteHumano = new RegistrarMensajeSalienteHumano(transaccion)
+  const rutaWebhookWhatsApp =
+    usaMeta && secretoApp && tokenVerificacion
+      ? {
+          verificarWebhook: new VerificarWebhookWhatsApp(tokenVerificacion),
+          recibirEvento: new RecibirEventoWhatsApp(
+            eventos,
+            new ResolverCuentaWhatsApp(cuentas),
+            new RegistrarMensajeEntrante(transaccion),
+            estados,
+            registrador,
+            pausadorSeguimientos,
+            procesadorAutorespuesta,
+            registrarSalienteHumano,
+          ),
+          secretoApp,
+        }
+      : undefined
+  const rutaWebhook360 = usa360Dialog
+    ? {
+        recibirEvento: new RecibirEvento360Dialog(
+          eventos,
+          new ResolverSecretoWebhookEntorno(cuentas),
+          registrador,
+        ),
+      }
     : undefined
 
   const aplicacion = crearApp({
     registrador,
     bodyLimit: entorno.WEBHOOK_BODY_LIMIT,
-    webhook: {
-      verificarWebhook: new VerificarWebhookWhatsApp(entorno.META_VERIFY_TOKEN),
-      recibirEvento: new RecibirEventoWhatsApp(
-        eventos,
-        new ResolverCuentaWhatsApp(cuentas),
-        new RegistrarMensajeEntrante(transaccion),
-        estados,
-        registrador,
-        pausadorSeguimientos,
-        procesadorAutorespuesta,
-      ),
-      secretoApp: entorno.META_APP_SECRET,
-    },
+    ...(rutaWebhookWhatsApp ? { webhook: rutaWebhookWhatsApp } : {}),
+    ...(rutaWebhook360 ? { webhook360: rutaWebhook360 } : {}),
     ...(rutaMensajes ? { mensajes: rutaMensajes } : {}),
     ...(rutaSeguimientos ? { seguimientos: rutaSeguimientos } : {}),
   })
