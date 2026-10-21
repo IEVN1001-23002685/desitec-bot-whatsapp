@@ -251,13 +251,20 @@ dispara el flujo de captura del módulo `autorespuestas`:
 - El **guion** vive en `guion_flujo_lead` (`clave`, `orden`, `texto`, `activo`) y
   se siembra con `npm run db:seed`: `bienvenida`, `pedir_nombre`, `pedir_correo`,
   `correo_invalido`, `pedir_modelos`, `pedir_cantidad`, `cantidad_invalida`,
-  `pedir_ciudad` y `confirmacion`. Se puede editar sin desplegar.
+  `pedir_ciudad`, `confirmacion` y `paso_a_asesor`. Se puede editar sin desplegar.
 - Al primer mensaje se crea un **lead** por conversación (`leads`) y se pide el
   nombre; después correo (validado), modelos, cantidad (entero > 0) y ciudad. Un
   dato inválido o un mensaje no-texto vuelve a pedir el paso actual.
+- En cualquier paso, si el mensaje pide atención humana (“persona”, “asesor”,
+  “agente”, “ejecutivo”, “hablar con alguien”, “que me llamen”, etc.), el lead
+  pasa a `en_asesor`, se cancelan sus seguimientos pendientes y se envía
+  `paso_a_asesor`: «Entiendo. Una persona de nuestro equipo te atenderá en breve.»
+  El bot deja de responder esa conversación. La detección ignora correos y evita
+  falsos positivos como “Modelo Ejecutivo” o “persona moral”.
 - Al completar se guarda `completado_en`, el lead pasa a `listo_pipedrive` y se
   envía la confirmación; el bot deja de responder esa conversación (la
-  sincronización con Pipedrive llega en una fase posterior).
+  sincronización con Pipedrive llega en una fase posterior). Una solicitud humana
+  posterior también se deriva a `en_asesor`.
 - Las respuestas salen por `EnviarMensajeSaliente` (misma ventana de atención y
   `DRY_RUN`). Un fallo del bot se registra y **no** tumba la recepción del webhook.
 - Con `WHATSAPP_BOT_NUMEROS_PERMITIDOS` no vacía, el bot **solo** responde a esos
