@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AlmacenEnMemoria,
+  PausadorSeguimientosFalso,
   ProveedorMensajesFalso,
   RepositorioCuentaWhatsAppEnMemoria,
   RepositorioGuionLeadEnMemoria,
@@ -30,6 +31,7 @@ function textoGuion(clave: string): string {
 function crearProcesador(
   entradasGuion: EntradaGuion[] = guionLeadPrueba(),
   numerosPermitidos: string[] = [],
+  pausador?: PausadorSeguimientosFalso,
 ) {
   const almacen = new AlmacenEnMemoria()
   const proveedor = new ProveedorMensajesFalso()
@@ -46,6 +48,7 @@ function crearProcesador(
     new RepositorioGuionLeadEnMemoria(entradasGuion),
     enviarMensaje,
     numerosPermitidos,
+    pausador,
   )
   return { almacen, proveedor, procesar }
 }
@@ -142,6 +145,153 @@ describe('ProcesarMensajeAutorespuesta', () => {
     const { procesar } = crearProcesador([])
 
     await expect(procesar.procesar(entrada('Hola'))).rejects.toThrow('bienvenida')
+  })
+
+  it('deriva a un asesor con el primer mensaje sin guardar el texto como nombre', async () => {
+    const pausador = new PausadorSeguimientosFalso()
+    const { almacen, proveedor, procesar } = crearProcesador(guionLeadPrueba(), [], pausador)
+
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads).toHaveLength(1)
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: null,
+      pasoActual: 'nombre',
+      estado: 'en_asesor',
+    })
+    expect(proveedor.envios).toHaveLength(1)
+    expect(proveedor.envios[0]).toMatchObject({
+      tipo: 'text',
+      cuerpo: 'Entiendo. Una persona de nuestro equipo te atenderá en breve.',
+    })
+    expect(pausador.llamadas).toEqual([CONVERSACION])
+    expect(pausador.origenes).toEqual(['cliente'])
+  })
+
+  it('deriva a un asesor en modelos sin guardar el texto como modelo', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: 'Ana',
+      correo: 'ana@example.com',
+      modelos: null,
+      pasoActual: 'modelos',
+      estado: 'en_asesor',
+    })
+    expect(proveedor.envios[3]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('paso_a_asesor'),
+    })
+  })
+
+  it('guarda un modelo ejecutivo sin derivar a un asesor', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Quiero el modelo ejecutivo'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Quiero el modelo ejecutivo',
+      pasoActual: 'cantidad',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[3]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('pedir_cantidad'),
+    })
+  })
+
+  it('deriva a un asesor en cantidad sin responder cantidad invalida', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Modelo X',
+      cantidad: null,
+      pasoActual: 'cantidad',
+      estado: 'en_asesor',
+    })
+    expect(proveedor.envios).toHaveLength(5)
+    expect(proveedor.envios[4]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('paso_a_asesor'),
+    })
+  })
+
+  it('no repite la respuesta cuando el lead ya esta en asesor', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads[0]).toMatchObject({ estado: 'en_asesor' })
+    expect(proveedor.envios).toHaveLength(1)
+  })
+
+  it('permite derivar a un asesor despues de completar el lead', async () => {
+    const pausador = new PausadorSeguimientosFalso()
+    const { almacen, proveedor, procesar } = crearProcesador(guionLeadPrueba(), [], pausador)
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('3'))
+    await procesar.procesar(entrada('Puebla'))
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      ciudad: 'Puebla',
+      estado: 'en_asesor',
+    })
+    expect(almacen.leads[0]?.completadoEn).not.toBeNull()
+    expect(proveedor.envios).toHaveLength(7)
+    expect(proveedor.envios[6]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('paso_a_asesor'),
+    })
+    expect(pausador.llamadas).toEqual([CONVERSACION])
+  })
+
+  it('envia el handoff aunque falle la pausa de seguimientos', async () => {
+    const pausador = new PausadorSeguimientosFalso({ error: new Error('db no disponible') })
+    const { almacen, proveedor, procesar } = crearProcesador(guionLeadPrueba(), [], pausador)
+
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads[0]).toMatchObject({ estado: 'en_asesor' })
+    expect(proveedor.envios).toHaveLength(1)
+    expect(proveedor.envios[0]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('paso_a_asesor'),
+    })
+  })
+
+  it('no deriva a un asesor cuando el remitente no esta permitido', async () => {
+    const pausador = new PausadorSeguimientosFalso()
+    const { almacen, proveedor, procesar } = crearProcesador(
+      guionLeadPrueba(),
+      ['4772905770'],
+      pausador,
+    )
+
+    await procesar.procesar(entrada('Quiero hablar con una persona'))
+
+    expect(almacen.leads).toHaveLength(0)
+    expect(proveedor.envios).toHaveLength(0)
+    expect(pausador.llamadas).toHaveLength(0)
   })
 
   it('no activa el bot cuando el numero remitente no esta permitido', async () => {
