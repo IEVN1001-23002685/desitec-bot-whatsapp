@@ -69,8 +69,9 @@ async function principal(): Promise<void> {
   const claveInterna = entorno.API_INTERNAL_KEY
   const rutaMensajes = claveInterna ? { enviarMensaje, claveInterna } : undefined
   const rutaSeguimientos = claveInterna ? { programarSeguimientos, claveInterna } : undefined
-  const pausadorSeguimientos = entorno.WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA
-    ? new PausadorSeguimientosRespuesta(seguimientosProgramados)
+  const pausadorSeguimientos = new PausadorSeguimientosRespuesta(seguimientosProgramados)
+  const pausadorRespuesta = entorno.WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA
+    ? pausadorSeguimientos
     : undefined
 
   const procesadorAutorespuesta = entorno.WHATSAPP_BOT_ACTIVO
@@ -79,6 +80,8 @@ async function principal(): Promise<void> {
         new RepositorioDrizzleGuionLead(baseDeDatos),
         enviarMensaje,
         entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
+        pausadorSeguimientos,
+        registrador,
       )
     : undefined
 
@@ -97,7 +100,7 @@ async function principal(): Promise<void> {
             new RegistrarMensajeEntrante(transaccion),
             estados,
             registrador,
-            pausadorSeguimientos,
+            pausadorRespuesta,
             procesadorAutorespuesta,
             registrarSalienteHumano,
           ),
