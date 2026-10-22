@@ -52,8 +52,9 @@ async function principal(): Promise<void> {
   const cuentas = new RepositorioDrizzleCuentaWhatsApp(baseDeDatos)
   const transaccion = new TransaccionDrizzleMensajeEntrante(baseDeDatos)
   const seguimientosProgramados = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
-  const pausador = entorno.WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA
-    ? new PausadorSeguimientosRespuesta(seguimientosProgramados)
+  const pausadorSeguimientos = new PausadorSeguimientosRespuesta(seguimientosProgramados)
+  const pausadorRespuesta = entorno.WHATSAPP_PAUSAR_SEGUIMIENTOS_POR_RESPUESTA
+    ? pausadorSeguimientos
     : undefined
 
   const enviarMensaje = new EnviarMensajeSaliente(
@@ -69,6 +70,8 @@ async function principal(): Promise<void> {
         new RepositorioDrizzleGuionLead(baseDeDatos),
         enviarMensaje,
         entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
+        pausadorSeguimientos,
+        registrador,
       )
     : undefined
 
@@ -80,7 +83,7 @@ async function principal(): Promise<void> {
       new RepositorioDrizzleEstadoMensaje(baseDeDatos),
       registrador,
       new RegistrarMensajeSalienteHumano(transaccion),
-      pausador,
+      pausadorRespuesta,
       procesadorAutorespuesta,
     ),
     registrador,
