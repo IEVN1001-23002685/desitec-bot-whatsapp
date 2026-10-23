@@ -26,6 +26,28 @@ import type {
   ContextoMensajeEntrante,
   TransaccionMensajeEntrante,
 } from '../../src/modules/whatsapp/application/ports/transaccion-mensaje-entrante.js'
+import type {
+  OrigenPausa,
+  PausadorSeguimientos,
+} from '../../src/modules/whatsapp/application/ports/pausador-seguimientos.js'
+import type { ResolverSecretoWebhookCuenta } from '../../src/modules/whatsapp/domain/ports/resolver-secreto-webhook.js'
+import type {
+  CredencialesCuenta,
+  ResolverCredencialCuenta,
+} from '../../src/modules/whatsapp/domain/ports/resolver-credencial-cuenta.js'
+import type {
+  EntradaProcesarAutorespuesta,
+  ProcesadorAutorespuesta,
+} from '../../src/modules/whatsapp/application/ports/procesador-autorespuesta.js'
+import type { EntradaGuion } from '../../src/modules/autorespuestas/domain/entities/entrada-guion.js'
+import type { Lead } from '../../src/modules/autorespuestas/domain/entities/lead.js'
+import type {
+  ActualizacionLead,
+  EntradaCrearLead,
+  RepositorioLead,
+} from '../../src/modules/autorespuestas/domain/ports/repositorio-lead.js'
+import type { RepositorioGuionLead } from '../../src/modules/autorespuestas/domain/ports/repositorio-guion-lead.js'
+import { GUION_FLUJO_LEAD_INICIAL } from '../../src/shared/db/guion-flujo-lead-inicial.js'
 import type { PlantillaWhatsApp } from '../../src/modules/followups/domain/entities/plantilla-whatsapp.js'
 import type { ReglaSeguimiento } from '../../src/modules/followups/domain/entities/regla-seguimiento.js'
 import type { SeguimientoProgramado } from '../../src/modules/followups/domain/entities/seguimiento-programado.js'
@@ -47,6 +69,7 @@ import { ResolverCuentaWhatsApp } from '../../src/modules/whatsapp/application/u
 import { RegistrarMensajeEntrante } from '../../src/modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
 import { EnviarMensajeSaliente } from '../../src/modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { RecibirEventoWhatsApp } from '../../src/modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
+import type { OpcionesRutasWebhook360Dialog } from '../../src/modules/whatsapp/presentation/routes/rutas-webhook-360dialog.js'
 
 export type MensajeAlmacenado = {
   id: string
@@ -63,9 +86,11 @@ export type MensajeAlmacenado = {
 export type EventoAlmacenado = {
   id: string
   claveEvento: string
+  fuente: string
   tipoObjeto: string | null
   estado: 'recibido' | 'procesado' | 'ignorado' | 'fallido'
   error: string | null
+  cargaUtilOriginal: unknown
 }
 
 export class AlmacenEnMemoria {
@@ -75,6 +100,7 @@ export class AlmacenEnMemoria {
   eventos: EventoAlmacenado[] = []
   reglasSeguimiento: ReglaSeguimiento[] = []
   seguimientosProgramados: SeguimientoProgramado[] = []
+  leads: Lead[] = []
   contadores: Record<string, number> = {}
 }
 
@@ -196,6 +222,30 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
     return { id: mensaje.id }
   }
 
+  async insertarSalienteHumano(
+    entrada: EntradaInsertarMensajeSaliente,
+  ): Promise<{ insertado: boolean; id: string | null }> {
+    const existente = this.almacen.mensajes.find(
+      (mensaje) => mensaje.idMensajeMeta === entrada.idMensajeMeta,
+    )
+    if (existente) {
+      return { insertado: false, id: null }
+    }
+    const mensaje: MensajeAlmacenado = {
+      id: `mensaje-${(this.almacen.mensajes.length + 1).toString()}`,
+      idConversacion: entrada.idConversacion,
+      idCuentaWhatsApp: entrada.idCuentaWhatsApp,
+      direccion: 'saliente',
+      idMensajeMeta: entrada.idMensajeMeta,
+      tipo: entrada.tipo,
+      cuerpo: entrada.cuerpo,
+      estado: entrada.estado,
+      creadoEn: entrada.marcaTiempoMeta ?? new Date(),
+    }
+    this.almacen.mensajes.push(mensaje)
+    return { insertado: true, id: mensaje.id }
+  }
+
   async buscarUltimoEntranteEn(idConversacion: string): Promise<Date | null> {
     const entrantes = this.almacen.mensajes.filter(
       (mensaje) => mensaje.idConversacion === idConversacion && mensaje.direccion === 'entrante',
@@ -278,6 +328,102 @@ export class VerificadorEstadoComercialFalso implements VerificadorEstadoComerci
   async puedeSeguir(idConversacion: string): Promise<boolean> {
     return !this.noSeguibles.includes(idConversacion)
   }
+}
+
+export type PausadorSeguimientosFalsoOpciones = {
+  pausados?: Record<string, number>
+  error?: Error
+}
+
+export class PausadorSeguimientosFalso implements PausadorSeguimientos {
+  readonly llamadas: string[] = []
+  readonly origenes: OrigenPausa[] = []
+  private readonly pausados: Record<string, number>
+  private readonly error: Error | undefined
+
+  constructor(opciones: PausadorSeguimientosFalsoOpciones = {}) {
+    this.pausados = opciones.pausados ?? {}
+    this.error = opciones.error
+  }
+
+  async pausarPorRespuesta(
+    idConversacion: string,
+    origen: OrigenPausa = 'cliente',
+  ): Promise<number> {
+    this.llamadas.push(idConversacion)
+    this.origenes.push(origen)
+    if (this.error) {
+      throw this.error
+    }
+    return this.pausados[idConversacion] ?? 0
+  }
+}
+
+export class ProcesadorAutorespuestaFalso implements ProcesadorAutorespuesta {
+  readonly llamadas: EntradaProcesarAutorespuesta[] = []
+  private readonly error: Error | undefined
+
+  constructor(opciones: { error?: Error } = {}) {
+    this.error = opciones.error
+  }
+
+  async procesar(entrada: EntradaProcesarAutorespuesta): Promise<void> {
+    this.llamadas.push(entrada)
+    if (this.error) {
+      throw this.error
+    }
+  }
+}
+
+export class RepositorioLeadEnMemoria implements RepositorioLead {
+  constructor(private readonly almacen: AlmacenEnMemoria) {}
+
+  async buscarPorConversacion(idConversacion: string): Promise<Lead | null> {
+    return this.almacen.leads.find((lead) => lead.idConversacion === idConversacion) ?? null
+  }
+
+  async crear(entrada: EntradaCrearLead): Promise<Lead> {
+    const lead: Lead = {
+      id: `lead-${(this.almacen.leads.length + 1).toString()}`,
+      idConversacion: entrada.idConversacion,
+      nombre: null,
+      correo: null,
+      modelos: null,
+      cantidad: null,
+      ciudad: null,
+      pasoActual: 'nombre',
+      estado: 'capturando',
+      completadoEn: null,
+    }
+    this.almacen.leads.push(lead)
+    return lead
+  }
+
+  async actualizar(id: string, cambios: ActualizacionLead): Promise<void> {
+    const lead = this.almacen.leads.find((item) => item.id === id)
+    if (!lead) {
+      return
+    }
+    Object.assign(lead, cambios)
+  }
+}
+
+export class RepositorioGuionLeadEnMemoria implements RepositorioGuionLead {
+  constructor(private readonly entradas: EntradaGuion[] = []) {}
+
+  async buscarActivaPorClave(clave: string): Promise<EntradaGuion | null> {
+    return this.entradas.find((entrada) => entrada.clave === clave && entrada.activa) ?? null
+  }
+}
+
+export function guionLeadPrueba(): EntradaGuion[] {
+  return GUION_FLUJO_LEAD_INICIAL.map((entrada, indice) => ({
+    id: `guion-${(indice + 1).toString()}`,
+    clave: entrada.clave,
+    orden: entrada.orden,
+    texto: entrada.texto,
+    activa: true,
+  }))
 }
 
 export class RepositorioReglaSeguimientoEnMemoria implements RepositorioReglaSeguimiento {
@@ -394,6 +540,7 @@ export class RepositorioEventoWebhookEnMemoria implements RepositorioEventoWebho
     claveEvento: string
     tipoObjeto: string | null
     cargaUtilOriginal: unknown
+    fuente?: string
   }): Promise<{ insertado: boolean; id: string }> {
     const existente = this.almacen.eventos.find(
       (evento) => evento.claveEvento === entrada.claveEvento,
@@ -404,12 +551,27 @@ export class RepositorioEventoWebhookEnMemoria implements RepositorioEventoWebho
     const evento: EventoAlmacenado = {
       id: `evento-${(this.almacen.eventos.length + 1).toString()}`,
       claveEvento: entrada.claveEvento,
+      fuente: entrada.fuente ?? 'whatsapp',
       tipoObjeto: entrada.tipoObjeto,
       estado: 'recibido',
       error: null,
+      cargaUtilOriginal: entrada.cargaUtilOriginal,
     }
     this.almacen.eventos.push(evento)
     return { insertado: true, id: evento.id }
+  }
+
+  async obtenerRecibidos(
+    limite: number,
+  ): Promise<{ claveEvento: string; fuente: string; cargaUtilOriginal: unknown }[]> {
+    return this.almacen.eventos
+      .filter((evento) => evento.estado === 'recibido')
+      .slice(0, limite)
+      .map((evento) => ({
+        claveEvento: evento.claveEvento,
+        fuente: evento.fuente,
+        cargaUtilOriginal: evento.cargaUtilOriginal,
+      }))
   }
 
   async buscarPorClaveEvento(
@@ -453,6 +615,28 @@ export class ProveedorMensajesFalso implements ProveedorMensajes {
       throw this.error
     }
     return { idMensajeMeta: this.idMensajeMeta }
+  }
+}
+
+export class ResolverCredencialCuentaFalso implements ResolverCredencialCuenta {
+  constructor(private readonly valores: Record<string, string> = {}) {}
+
+  resolver(cuenta: CredencialesCuenta): string | null {
+    if (cuenta.credencialRef && this.valores[cuenta.credencialRef] !== undefined) {
+      return this.valores[cuenta.credencialRef] ?? null
+    }
+    return cuenta.tokenAcceso
+  }
+}
+
+export class ResolverSecretoWebhookCuentaFalso implements ResolverSecretoWebhookCuenta {
+  readonly consultas: string[] = []
+
+  constructor(private readonly secretos: Record<string, string> = {}) {}
+
+  async obtener(idNumeroTelefono: string): Promise<string | null> {
+    this.consultas.push(idNumeroTelefono)
+    return this.secretos[idNumeroTelefono] ?? null
   }
 }
 
@@ -517,8 +701,12 @@ export type DependenciasAppPruebaWebhook = {
   almacen?: AlmacenEnMemoria
   claveInterna?: string
   proveedor?: ProveedorMensajes
+  credenciales?: ResolverCredencialCuenta
   ventanaAtencionActiva?: boolean
   reglasSeguimiento?: ReglaSeguimiento[]
+  pausador?: PausadorSeguimientos
+  procesadorAutorespuesta?: ProcesadorAutorespuesta
+  webhook360?: OpcionesRutasWebhook360Dialog
 }
 
 export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
@@ -533,7 +721,8 @@ export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
   const estados = new RepositorioEstadoMensajeEnMemoria(almacen)
   const transaccion = new TransaccionMensajeEntranteEnMemoria(almacen)
   const proveedor = dependencias.proveedor ?? new ProveedorMensajesFalso()
-  const enviarMensaje = new EnviarMensajeSaliente(cuentas, transaccion, proveedor, {
+  const credenciales = dependencias.credenciales ?? new ResolverCredencialCuentaFalso()
+  const enviarMensaje = new EnviarMensajeSaliente(cuentas, transaccion, proveedor, credenciales, {
     ventanaAtencionActiva: dependencias.ventanaAtencionActiva ?? false,
   })
   const claveInterna = dependencias.claveInterna
@@ -554,11 +743,14 @@ export function crearAppPrueba(dependencias: DependenciasAppPruebaWebhook) {
         new RegistrarMensajeEntrante(transaccion),
         estados,
         registrador,
+        dependencias.pausador,
+        dependencias.procesadorAutorespuesta,
       ),
       secretoApp,
     },
     ...(rutaMensajes ? { mensajes: rutaMensajes } : {}),
     ...(rutaSeguimientos ? { seguimientos: rutaSeguimientos } : {}),
+    ...(dependencias.webhook360 ? { webhook360: dependencias.webhook360 } : {}),
   })
 
   return { app: aplicacion, almacen, tokenVerificacion, secretoApp, proveedor }
@@ -573,6 +765,9 @@ export function cuentasPrueba(): CuentaWhatsApp[] {
       idNumeroTelefono: '111111111111111',
       telefonoVisible: '+5210000000001',
       tokenAcceso: 'token-comercial',
+      proveedor: 'meta',
+      credencialRef: null,
+      webhookSecretRef: null,
       estaActiva: true,
     },
     {
@@ -582,6 +777,9 @@ export function cuentasPrueba(): CuentaWhatsApp[] {
       idNumeroTelefono: '222222222222222',
       telefonoVisible: '+5210000000002',
       tokenAcceso: 'token-soporte',
+      proveedor: 'meta',
+      credencialRef: null,
+      webhookSecretRef: null,
       estaActiva: true,
     },
     {
@@ -591,6 +789,9 @@ export function cuentasPrueba(): CuentaWhatsApp[] {
       idNumeroTelefono: '333333333333333',
       telefonoVisible: '+5210000000003',
       tokenAcceso: 'token-postventa',
+      proveedor: 'meta',
+      credencialRef: null,
+      webhookSecretRef: null,
       estaActiva: true,
     },
   ]
