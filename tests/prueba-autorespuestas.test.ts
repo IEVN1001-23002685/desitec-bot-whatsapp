@@ -162,7 +162,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
     expect(proveedor.envios).toHaveLength(1)
     expect(proveedor.envios[0]).toMatchObject({
       tipo: 'text',
-      cuerpo: 'Entiendo. Una persona de nuestro equipo te atenderá en breve.',
+      cuerpo: textoGuion('paso_a_asesor'),
     })
     expect(pausador.llamadas).toEqual([CONVERSACION])
     expect(pausador.origenes).toEqual(['cliente'])
@@ -313,5 +313,181 @@ describe('ProcesarMensajeAutorespuesta', () => {
     expect(almacen.leads).toHaveLength(1)
     expect(proveedor.envios).toHaveLength(1)
     expect(proveedor.envios[0]).toMatchObject({ idWa: '5214772905770' })
+  })
+
+  it('extrae producto, cantidad y ciudad del primer mensaje y solo pide el nombre', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola, necesito cotizar 6 estaciones manuales para Querétaro'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: null,
+      correo: null,
+      modelos: 'estaciones manuales (6)',
+      cantidad: 6,
+      ciudad: 'Querétaro',
+      pasoActual: 'nombre',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[0]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('bienvenida'),
+    })
+  })
+
+  it('completa el lead con todos los datos en el primer mensaje', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(
+      entrada(
+        'Hola, soy Ana, mi correo es ana@example.com, necesito 2 gabinetes y 6 estaciones manuales para Querétaro',
+      ),
+    )
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: 'Ana',
+      correo: 'ana@example.com',
+      modelos: 'gabinetes (2); estaciones manuales (6)',
+      cantidad: 8,
+      ciudad: 'Querétaro',
+      pasoActual: 'ciudad',
+      estado: 'listo_pipedrive',
+    })
+    expect(almacen.leads[0]?.completadoEn).not.toBeNull()
+    expect(proveedor.envios).toHaveLength(1)
+    expect(proveedor.envios[0]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('confirmacion'),
+    })
+  })
+
+  it('conserva los datos del primer mensaje y no vuelve a pedirlos', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola, necesito cotizar 6 estaciones manuales para Querétaro'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: 'Ana',
+      correo: 'ana@example.com',
+      modelos: 'estaciones manuales (6)',
+      cantidad: 6,
+      ciudad: 'Querétaro',
+      estado: 'listo_pipedrive',
+    })
+    expect(proveedor.envios).toHaveLength(3)
+    expect(proveedor.envios[1]).toMatchObject({ cuerpo: textoGuion('pedir_correo') })
+    expect(proveedor.envios[2]).toMatchObject({ cuerpo: textoGuion('confirmacion') })
+  })
+
+  it('actualiza la cantidad con una correccion explicita sin perder la ciudad pendiente', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('3'))
+    await procesar.procesar(entrada('en realidad son 6'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      cantidad: 6,
+      ciudad: null,
+      pasoActual: 'ciudad',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('pedir_ciudad') })
+  })
+
+  it('pide aclaracion cuando hay mas de un correo', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com, pedro@example.com'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      correo: null,
+      pasoActual: 'correo',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[2]).toMatchObject({ cuerpo: textoGuion('correo_ambiguo') })
+  })
+
+  it('pide una cantidad exacta cuando recibe un rango', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('3-5'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      cantidad: null,
+      pasoActual: 'cantidad',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[4]).toMatchObject({ cuerpo: textoGuion('cantidad_rango') })
+  })
+
+  it('agrega un producto adicional en el paso de cantidad y pide el total', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Gabinete'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Modelo X; Gabinete',
+      cantidad: null,
+      pasoActual: 'cantidad',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[4]).toMatchObject({ cuerpo: textoGuion('producto_agregado') })
+  })
+
+  it('aplica correcciones de correo y ciudad sin reiniciar el flujo', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('viejo@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('3'))
+    await procesar.procesar(entrada('mi correo es nuevo@example.com y mi ciudad es León'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: 'Ana',
+      correo: 'nuevo@example.com',
+      modelos: 'Modelo X',
+      cantidad: 3,
+      ciudad: 'León',
+      estado: 'listo_pipedrive',
+    })
+    expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('confirmacion') })
+  })
+
+  it('corrige el modelo sin perder la cantidad ni la ciudad pendiente', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('3'))
+    await procesar.procesar(entrada('en realidad el modelo es Modelo Y'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Modelo Y',
+      cantidad: 3,
+      ciudad: null,
+      pasoActual: 'ciudad',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('pedir_ciudad') })
   })
 })

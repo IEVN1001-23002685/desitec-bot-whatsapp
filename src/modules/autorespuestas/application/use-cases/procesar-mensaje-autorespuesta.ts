@@ -1,11 +1,7 @@
-import {
-  clavePedirPaso,
-  evaluarPaso,
-  type CampoLead,
-} from '../../domain/services/maquina-flujo-lead.js'
+import { clavePedirPaso, procesarMensajeLead } from '../../domain/services/maquina-flujo-lead.js'
 import { esSolicitudDeHumano } from '../../domain/services/detectar-solicitud-humano.js'
 import type { Lead } from '../../domain/entities/lead.js'
-import type { ActualizacionLead, RepositorioLead } from '../../domain/ports/repositorio-lead.js'
+import type { RepositorioLead } from '../../domain/ports/repositorio-lead.js'
 import type { RepositorioGuionLead } from '../../domain/ports/repositorio-guion-lead.js'
 import type { EnviarMensajeSaliente } from '../../../whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import type { EntradaProcesarAutorespuesta } from '../../../whatsapp/application/ports/procesador-autorespuesta.js'
@@ -46,8 +42,12 @@ export class ProcesarMensajeAutorespuesta {
     }
 
     if (!lead) {
-      await this.leads.crear({ idConversacion: entrada.idConversacion })
-      await this.responder(entrada, 'bienvenida')
+      const creado = await this.leads.crear({ idConversacion: entrada.idConversacion })
+      if (entrada.texto === null) {
+        await this.responder(entrada, 'bienvenida')
+        return
+      }
+      await this.procesarTexto(entrada, creado, true)
       return
     }
 
@@ -60,20 +60,26 @@ export class ProcesarMensajeAutorespuesta {
       return
     }
 
-    const evaluacion = evaluarPaso(lead.pasoActual, entrada.texto)
-    if (!evaluacion.valido) {
-      await this.responder(entrada, evaluacion.claveRespuesta)
+    await this.procesarTexto(entrada, lead, false)
+  }
+
+  private async procesarTexto(
+    entrada: EntradaProcesarAutorespuesta,
+    lead: Lead,
+    esPrimerMensaje: boolean,
+  ): Promise<void> {
+    if (entrada.texto === null) {
       return
     }
 
-    const siguiente = evaluacion.siguiente
-    await this.leads.actualizar(lead.id, {
-      ...aplicarCampo(lead, evaluacion.campo),
-      pasoActual: siguiente ?? lead.pasoActual,
-      estado: siguiente === null ? 'listo_pipedrive' : 'capturando',
-      completadoEn: siguiente === null ? new Date() : null,
+    const { cambios, claveRespuesta } = procesarMensajeLead({
+      lead,
+      texto: entrada.texto,
+      esPrimerMensaje,
     })
-    await this.responder(entrada, siguiente === null ? 'confirmacion' : clavePedirPaso(siguiente))
+
+    await this.leads.actualizar(lead.id, cambios)
+    await this.responder(entrada, claveRespuesta)
   }
 
   private async derivarAHumano(
@@ -135,36 +141,6 @@ export class ProcesarMensajeAutorespuesta {
       cuerpo: guion.texto,
     })
   }
-}
-
-type DatosLead = Omit<ActualizacionLead, 'pasoActual' | 'estado' | 'completadoEn'>
-
-function aplicarCampo(lead: Lead, campo: CampoLead): DatosLead {
-  const datos: DatosLead = {
-    nombre: lead.nombre,
-    correo: lead.correo,
-    modelos: lead.modelos,
-    cantidad: lead.cantidad,
-    ciudad: lead.ciudad,
-  }
-  switch (campo.campo) {
-    case 'nombre':
-      datos.nombre = campo.valor
-      break
-    case 'correo':
-      datos.correo = campo.valor
-      break
-    case 'modelos':
-      datos.modelos = campo.valor
-      break
-    case 'cantidad':
-      datos.cantidad = campo.valor
-      break
-    case 'ciudad':
-      datos.ciudad = campo.valor
-      break
-  }
-  return datos
 }
 
 function mensajeError(error: unknown): string {
