@@ -34,7 +34,8 @@ npm run test:integracion # integracion con PostgreSQL real (requiere docker comp
 npx prettier --check .   # verificar formato
 npm run db:generate      # generar migración Drizzle
 npm run db:migrate       # aplicar migraciones
-npm run db:seed          # cargar/actualizar las cuentas de WhatsApp desde .env
+npm run db:seed          # cargar/actualizar cuentas y guion del bot desde .env
+npm run db:actualizar-guion # actualizar el texto de handoff existente (idempotente)
 npm run dev              # servidor HTTP (tsx watch src/servidor.ts)
 npm run worker           # worker: eventos de webhook + seguimientos (polling sobre PostgreSQL)
 npm run build            # tsc -p tsconfig.build.json -> dist/
@@ -250,17 +251,36 @@ dispara el flujo de captura del módulo `autorespuestas`:
 
 - El **guion** vive en `guion_flujo_lead` (`clave`, `orden`, `texto`, `activo`) y
   se siembra con `npm run db:seed`: `bienvenida`, `pedir_nombre`, `pedir_correo`,
-  `correo_invalido`, `pedir_modelos`, `pedir_cantidad`, `cantidad_invalida`,
-  `pedir_ciudad`, `confirmacion` y `paso_a_asesor`. Se puede editar sin desplegar.
+  `correo_invalido`, `correo_ambiguo`, `pedir_modelos`, `pedir_cantidad`,
+  `cantidad_invalida`, `cantidad_rango`, `cantidad_tecnica`, `cantidad_ambigua`,
+  `producto_agregado`, `pedir_ciudad`, `confirmacion` y `paso_a_asesor`. Se puede
+  editar sin desplegar. `npm run db:seed` no sobrescribe textos existentes; para
+  actualizar el handoff anterior usa `npm run db:actualizar-guion`.
 - Al primer mensaje se crea un **lead** por conversación (`leads`) y se pide el
   nombre; después correo (validado), modelos, cantidad (entero > 0) y ciudad. Un
   dato inválido o un mensaje no-texto vuelve a pedir el paso actual.
+- El primer mensaje se interpreta completo: nombre explícito (“soy Ana”, “me llamo
+  Ana”), correo, ciudad y productos con cantidades. Solo se piden los datos que
+  falten. Ejemplo: «Hola, necesito cotizar 6 estaciones manuales para Querétaro»
+  guarda producto, cantidad y ciudad, y únicamente pregunta el nombre.
+- Los productos y cantidades se guardan juntos: `leads.modelos` conserva el
+  detalle (`gabinetes (2); estaciones manuales (6)`) y `leads.cantidad` el total
+  (8). Si falta alguna cantidad, se pide el total en lugar de asumirla. En el paso
+  de cantidad, un producto nuevo se agrega a la lista y se vuelve a pedir el total.
+- Se admiten correcciones explícitas («mi correo es…», «me llamo…», «en realidad
+  son 6», «mejor…») sin reiniciar el flujo. Las correcciones de modelo/producto
+  («en realidad el modelo es…», «mejor el modelo…», «corrige el modelo a…»)
+  reemplazan `modelos` y conservan la cantidad actual salvo que el mensaje incluya
+  una cantidad nueva. Varios correos distintos en un mensaje se rechazan con
+  `correo_ambiguo`; los rangos, decimales y especificaciones técnicas se aclaran
+  con sus claves correspondientes.
 - En cualquier paso, si el mensaje pide atención humana (“persona”, “asesor”,
   “agente”, “ejecutivo”, “hablar con alguien”, “que me llamen”, etc.), el lead
   pasa a `en_asesor`, se cancelan sus seguimientos pendientes y se envía
-  `paso_a_asesor`: «Entiendo. Una persona de nuestro equipo te atenderá en breve.»
-  El bot deja de responder esa conversación. La detección ignora correos y evita
-  falsos positivos como “Modelo Ejecutivo” o “persona moral”.
+  `paso_a_asesor`: «He registrado tu solicitud para atención humana. Un asesor
+  revisará tu conversación.» El bot deja de responder esa conversación. La
+  detección ignora correos y evita falsos positivos como “Modelo Ejecutivo” o
+  “persona moral”, además de negaciones como “no necesito un asesor”.
 - Al completar se guarda `completado_en`, el lead pasa a `listo_pipedrive` y se
   envía la confirmación; el bot deja de responder esa conversación (la
   sincronización con Pipedrive llega en una fase posterior). Una solicitud humana
