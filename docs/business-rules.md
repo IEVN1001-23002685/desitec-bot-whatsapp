@@ -125,14 +125,27 @@
 - Datos capturados por lead: nombre, correo (formato válido), modelos, cantidad
   (entero > 0) y ciudad. Un dato inválido o un mensaje no-texto vuelve a pedir el
   paso actual sin avanzar.
+- El primer mensaje se interpreta completo: se extraen nombre explícito, correo,
+  ciudad y productos con cantidades, y solo se piden los datos faltantes. Los
+  productos se guardan en `modelos` con su cantidad (`Producto (N); Producto`) y
+  el total en `cantidad`. Si falta alguna cantidad no se asume: se pide el total.
+  En el paso de cantidad, un producto adicional se agrega y se vuelve a pedir el
+  total.
+- Se aceptan correcciones explícitas («mi correo es…», «me llamo…», «en realidad
+  son 6», «mejor…»). Las correcciones de modelo/producto («en realidad el modelo
+  es…», «mejor el modelo…», «corrige el modelo a…») reemplazan `modelos` y
+  conservan la cantidad actual salvo que incluyan una cantidad nueva. Varios
+  correos distintos se rechazan con `correo_ambiguo`; rangos, decimales y
+  especificaciones técnicas se aclaran con sus claves.
 - Si el mensaje solicita atención humana (p. ej. «persona», «asesor», «agente»,
   «ejecutivo», «hablar con alguien», «que me llamen»), la detección ocurre antes
   de validar el paso: el lead pasa a `en_asesor` conservando los datos ya
   capturados, se cancelan sus seguimientos `pendiente` y se responde con
-  `paso_a_asesor` («Entiendo. Una persona de nuestro equipo te atenderá en
-  breve.»). El bot deja de responder esa conversación y no se reactiva
-  automáticamente. La detección ignora correos y evita falsos positivos como
-  «Modelo Ejecutivo» o «persona moral».
+  `paso_a_asesor` («He registrado tu solicitud para atención humana. Un asesor
+  revisará tu conversación.»). El bot deja de responder esa conversación y no se
+  reactiva automáticamente. La detección ignora correos y evita falsos positivos
+  como «Modelo Ejecutivo» o «persona moral», además de negaciones como «no
+  necesito un asesor».
 - Al completar, el lead guarda `completado_en` y pasa a `listo_pipedrive`; el bot
   deja de responder esa conversación. Una solicitud humana posterior también
   cambia el estado a `en_asesor`. La sincronización con Pipedrive y los endpoints
