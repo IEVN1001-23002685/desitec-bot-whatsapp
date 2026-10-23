@@ -16,7 +16,8 @@
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/shared/db/migrar.ts",
-    "db:seed": "tsx src/shared/db/sembrar.ts"
+    "db:seed": "tsx src/shared/db/sembrar.ts",
+    "db:actualizar-guion": "tsx scripts/actualizar-guion-handoff.ts"
   },
   "keywords": [],
   "type": "module",
