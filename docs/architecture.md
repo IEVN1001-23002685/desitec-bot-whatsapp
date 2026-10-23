@@ -69,9 +69,13 @@ declarado usan `PROVEEDOR_MENSAJERIA_DEFECTO` (por defecto `360dialog`).
 9. Si el mensaje se insertó, `WHATSAPP_BOT_ACTIVO` está activo y el remitente
    pasa el filtro opcional `WHATSAPP_BOT_NUMEROS_PERMITIDOS`,
    `ProcesarMensajeAutorespuesta` (puerto `whatsapp/application/ports/procesador-autorespuesta`)
-   ejecuta la máquina de pasos del flujo (`autorespuestas/domain/services/maquina-flujo-lead`):
-   crea o continúa el `lead` de la conversación, guarda el dato capturado y
-   responde con el texto del guion vía `EnviarMensajeSaliente`. Antes de validar
+   construye un `ContextoMensajeLead` y llama a `procesarMensajeLead`, que
+   interpreta y aplica el mensaje: crea o continúa el `lead` de la conversación,
+   extrae datos del primer mensaje y correcciones explícitas, guarda el campo
+   capturado y responde con el texto del guion vía `EnviarMensajeSaliente`. Las
+   correcciones de nombre, correo, ciudad, cantidad y modelo conservan el paso
+   pendiente y no reinician el flujo. `evaluarPaso` queda como utilidad aislada
+   para validar un dato suelto; no participa del flujo del bot. Antes de validar
    el paso, `detectar-solicitud-humano` reconoce pedidos de atención humana: el
    lead pasa a `en_asesor`, se pausan sus seguimientos y se responde
    `paso_a_asesor`; el bot deja de responder esa conversación. Es best-effort:
