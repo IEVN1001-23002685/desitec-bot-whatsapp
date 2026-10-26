@@ -121,7 +121,8 @@
   números se registran y pausan seguimientos, pero no reciben respuesta del bot.
 - El contenido de cada respuesta vive en `guion_flujo_lead` (editable sin
   desplegar). Si falta el texto de una clave, el procesamiento falla de forma
-  controlada (se registra) y no rompe la recepción del webhook.
+  controlada (se registra) y no rompe la recepción del webhook; la única excepción
+  es `productos_agregados`, que usa `producto_agregado` como respaldo.
 - Datos capturados por lead: nombre, correo (formato válido), modelos, cantidad
   (entero > 0) y ciudad. Un dato inválido o un mensaje no-texto vuelve a pedir el
   paso actual sin avanzar.
@@ -130,12 +131,16 @@
   productos se guardan en `modelos` con su cantidad (`Producto (N); Producto`) y
   el total en `cantidad`. Si falta alguna cantidad no se asume: se pide el total.
   En el paso de cantidad, un producto adicional se agrega y se vuelve a pedir el
-  total.
+  total. También se aceptan varios modelos en un mismo mensaje.
+- Los CTA del sitio se reconocen: «Quiero información del producto: …» guarda el
+  producto; el CTA global de asesoría no inventa producto. En ambos casos se pide
+  el siguiente dato sin enviar información del producto.
 - Se aceptan correcciones explícitas («mi correo es…», «me llamo…», «en realidad
-  son 6», «mejor…»). Las correcciones de modelo/producto («en realidad el modelo
-  es…», «mejor el modelo…», «corrige el modelo a…») reemplazan `modelos` y
-  conservan la cantidad actual salvo que incluyan una cantidad nueva. Varios
-  correos distintos se rechazan con `correo_ambiguo`; rangos, decimales y
+  son 6», «mejor…»). Una corrección de un solo modelo/producto («en realidad el
+  modelo es…», «mejor el modelo…», «corrige el modelo a…») reemplaza `modelos` y
+  conserva la cantidad actual salvo que incluya una cantidad nueva. Si incluye
+  varios modelos, se agregan a la lista existente y se vuelve a pedir el total.
+  Varios correos distintos se rechazan con `correo_ambiguo`; rangos, decimales y
   especificaciones técnicas se aclaran con sus claves.
 - Si el mensaje solicita atención humana (p. ej. «persona», «asesor», «agente»,
   «ejecutivo», «hablar con alguien», «que me llamen»), la detección ocurre antes
