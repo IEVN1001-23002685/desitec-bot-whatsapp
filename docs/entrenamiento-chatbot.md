@@ -36,6 +36,11 @@ que falte. Ejemplos:
   estaciones manuales para Querétaro”
   → guarda todo y confirma.
 - “Hola, soy Ana” → guarda el nombre y pregunta el correo.
+- «Quiero información del producto: Garrett Arco Detector de Metales PD 6500i»
+  → guarda ese producto y pregunta el nombre; no envía ficha ni información.
+- «Hola, me gustaría recibir asesoría de un especialista para elegir la solución
+  adecuada. ¿Me pueden apoyar?» → no guarda producto ni deriva a asesor; inicia la
+  captura pidiendo el nombre.
 
 ## Productos y cantidades
 
@@ -45,11 +50,15 @@ que falte. Ejemplos:
   total.
 - En el paso de cantidad, “Gabinete” agrega el producto a la lista y vuelve a
   pedir el total.
+- Varios modelos en un mismo mensaje (“Modelo Y y Modelo Z”) se guardan en la
+  lista.
 - Si el cliente corrige (“en realidad son 6”), se actualiza el total sin
   reiniciar el flujo.
-- Si corrige el modelo (“en realidad el modelo es Modelo Y”, “mejor el modelo Y”,
-  “corrige el modelo a Modelo Y”), se reemplaza `modelos` y se conserva la
+- Si corrige un solo modelo (“en realidad el modelo es Modelo Y”, “mejor el modelo
+  Y”, “corrige el modelo a Modelo Y”), se reemplaza `modelos` y se conserva la
   cantidad actual, salvo que el mismo mensaje incluya una cantidad nueva.
+- Si corrige varios modelos (“mejor los modelos Modelo Y y Modelo Z”), se agregan
+  a la lista existente y se vuelve a pedir el total.
 
 ## Correos ambiguos
 
@@ -71,6 +80,8 @@ No se deriva por:
 - “Persona moral” o “persona física”.
 - “Recursos humanos”.
 - Un correo que contiene palabras como “asesor”.
+- El CTA global «Quiero asesoría de un especialista para elegir la solución
+  adecuada»: inicia la captura normal, no deriva automáticamente.
 
 Al derivar, el lead pasa a `en_asesor`, conserva sus datos, se pausan sus
 seguimientos y el bot deja de responder esa conversación. El texto es:
