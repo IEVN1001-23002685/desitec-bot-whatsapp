@@ -8,6 +8,7 @@
     "test:integracion": "vitest run --config vitest.integracion.config.ts",
     "dev": "tsx watch src/servidor.ts",
     "worker": "tsx watch src/trabajador.ts",
+    "simulador": "tsx watch src/simulador.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/servidor.js",
     "typecheck": "tsc --noEmit",
@@ -26,6 +27,7 @@
   },
   "private": true,
   "dependencies": {
+    "@google/genai": "^2.31.0",
     "dotenv": "^18.0.7",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.5",
