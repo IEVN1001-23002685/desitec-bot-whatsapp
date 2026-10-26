@@ -38,6 +38,7 @@ npm run db:seed          # cargar/actualizar cuentas y guion del bot desde .env
 npm run db:actualizar-guion # actualizar el texto de handoff existente (idempotente)
 npm run dev              # servidor HTTP (tsx watch src/servidor.ts)
 npm run worker           # worker: eventos de webhook + seguimientos (polling sobre PostgreSQL)
+npm run simulador         # simulador local de conversaciones (solo localhost y development)
 npm run build            # tsc -p tsconfig.build.json -> dist/
 npm run start            # node dist/servidor.js
 ```
@@ -171,6 +172,45 @@ $url = "http://localhost:3000/webhooks/whatsapp?hub.mode=subscribe&hub.verify_to
 Los logs no registran tokens, firmas ni números completos (métricas y
 `enmascararTelefono` enmascaran a `***####`).
 
+## Simulador local de conversaciones
+
+Modo 100% local para probar el chatbot sin Meta, 360dialog ni Cloudflare Tunnel.
+Usa un adapter de transporte simulado (sin HTTP externo), una base PostgreSQL
+exclusiva y una cuenta/contacto sinteticos. Solo corre en `NODE_ENV=development`,
+con `WHATSAPP_DRY_RUN=true` y `WHATSAPP_SEGUIMIENTOS_ACTIVOS=false`; escucha
+unicamente en `127.0.0.1`.
+
+Comandos (PowerShell):
+
+```powershell
+# 1. Base de datos dedicada (una sola vez)
+docker compose up -d --wait db
+$env:DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/desitec_bot_sim'
+npm run db:migrate
+npm run db:seed
+
+# 2. Servidor Fastify normal (opcional, otra terminal)
+$env:DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/desitec_bot'
+npm run dev
+
+# 3. Worker (opcional, otra terminal)
+$env:DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/desitec_bot'
+npm run worker
+
+# 4. Simulador (terminal dedicada)
+$env:NODE_ENV = 'development'
+$env:WHATSAPP_DRY_RUN = 'true'
+$env:WHATSAPP_SEGUIMIENTOS_ACTIVOS = 'false'
+$env:WHATSAPP_BOT_ACTIVO = 'true'
+$env:DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/desitec_bot_sim'
+$env:SIMULADOR_PORT = '3001'
+npm run simulador
+```
+
+Abrir `http://127.0.0.1:3001/simulador`. Los mensajes, el lead, su estado y el
+paso actual se muestran en el panel. "Reiniciar" borra solo la conversacion
+sintetica. No expone credenciales reales.
+
 ## Envío de mensajes (Fase 2)
 
 `POST /api/mensajes` envía un mensaje de texto desde una de las líneas. Requiere:
@@ -253,9 +293,11 @@ dispara el flujo de captura del módulo `autorespuestas`:
   se siembra con `npm run db:seed`: `bienvenida`, `pedir_nombre`, `pedir_correo`,
   `correo_invalido`, `correo_ambiguo`, `pedir_modelos`, `pedir_cantidad`,
   `cantidad_invalida`, `cantidad_rango`, `cantidad_tecnica`, `cantidad_ambigua`,
-  `producto_agregado`, `pedir_ciudad`, `confirmacion` y `paso_a_asesor`. Se puede
-  editar sin desplegar. `npm run db:seed` no sobrescribe textos existentes; para
-  actualizar el handoff anterior usa `npm run db:actualizar-guion`.
+  `producto_agregado`, `productos_agregados`, `pedir_ciudad`, `confirmacion` y
+  `paso_a_asesor`. Se puede editar sin desplegar. `npm run db:seed` no sobrescribe
+  textos existentes; para actualizar el handoff anterior usa
+  `npm run db:actualizar-guion`. Si `productos_agregados` aún no existe, se usa
+  `producto_agregado` como respaldo.
 - Al primer mensaje se crea un **lead** por conversación (`leads`) y se pide el
   nombre; después correo (validado), modelos, cantidad (entero > 0) y ciudad. Un
   dato inválido o un mensaje no-texto vuelve a pedir el paso actual.
@@ -263,17 +305,24 @@ dispara el flujo de captura del módulo `autorespuestas`:
   Ana”), correo, ciudad y productos con cantidades. Solo se piden los datos que
   falten. Ejemplo: «Hola, necesito cotizar 6 estaciones manuales para Querétaro»
   guarda producto, cantidad y ciudad, y únicamente pregunta el nombre.
+- Se reconocen los CTA del sitio: «Quiero información del producto: …» guarda el
+  producto indicado; «Hola, me gustaría recibir asesoría de un especialista para
+  elegir la solución adecuada. ¿Me pueden apoyar?» no inventa producto y solo pide
+  el nombre. En ambos casos se pide el siguiente dato sin enviar información del
+  producto.
 - Los productos y cantidades se guardan juntos: `leads.modelos` conserva el
   detalle (`gabinetes (2); estaciones manuales (6)`) y `leads.cantidad` el total
   (8). Si falta alguna cantidad, se pide el total en lugar de asumirla. En el paso
   de cantidad, un producto nuevo se agrega a la lista y se vuelve a pedir el total.
+  También se aceptan varios modelos en un mismo mensaje («Modelo Y y Modelo Z»).
 - Se admiten correcciones explícitas («mi correo es…», «me llamo…», «en realidad
-  son 6», «mejor…») sin reiniciar el flujo. Las correcciones de modelo/producto
-  («en realidad el modelo es…», «mejor el modelo…», «corrige el modelo a…»)
-  reemplazan `modelos` y conservan la cantidad actual salvo que el mensaje incluya
-  una cantidad nueva. Varios correos distintos en un mensaje se rechazan con
-  `correo_ambiguo`; los rangos, decimales y especificaciones técnicas se aclaran
-  con sus claves correspondientes.
+  son 6», «mejor…») sin reiniciar el flujo. Una corrección de un solo
+  modelo/producto («en realidad el modelo es…», «mejor el modelo…», «corrige el
+  modelo a…») reemplaza `modelos` y conserva la cantidad actual salvo que el
+  mensaje incluya una cantidad nueva. Si la corrección incluye varios modelos, se
+  agregan a la lista existente y se vuelve a pedir el total. Varios correos
+  distintos en un mensaje se rechazan con `correo_ambiguo`; los rangos, decimales
+  y especificaciones técnicas se aclaran con sus claves correspondientes.
 - En cualquier paso, si el mensaje pide atención humana (“persona”, “asesor”,
   “agente”, “ejecutivo”, “hablar con alguien”, “que me llamen”, etc.), el lead
   pasa a `en_asesor`, se cancelan sus seguimientos pendientes y se envía
@@ -292,6 +341,77 @@ dispara el flujo de captura del módulo `autorespuestas`:
   normalizan (sin `+`/espacios y sin lada `52`/`521`), así que `4772905770`
   coincide con `+52 1 477 290 5770`. Para pruebas locales con una sola línea usa
   un `idNumeroTelefono` placeholder hasta conectar el webhook real de 360dialog.
+
+## Motor de respuestas con IA Gemini (Fase 5)
+
+Con `WHATSAPP_RESPUESTAS_MODO=gemini` y `WHATSAPP_BOT_ACTIVO=true`, el bot usa
+Gemini (`@google/genai`, modelo `gemini-4-argon`) para generar respuestas
+automáticas a mensajes entrantes, canalizadas a través del caso de uso
+`ProcesarMensajeAutorespuestaIA`. El principio rector es **"Gemini propone, el
+backend decide"**: la salida estructurada de Gemini se mapea a
+`InterpretacionMensaje` y pasa por `aplicarInterpretacion` (módulo
+`autorespuestas`), de modo que solo esa función decide los cambios de estado
+(`listo_pipedrive` solo cuando los 5 campos Nombre/Correo/Modelos/Cantidad/Ciudad
+estén presentes; `en_asesor` está permitido comotrigger IA pero nunca se reactiva
+sola).
+
+### Flujo de procesamiento
+
+1. **Validación de número** (`numeroPermitido`): solo números en el allowlist.
+2. **Texto nulo/vacío** → flujo determinista (fallback).
+3. **Solicitud de humano** (`esSolicitudDeHumano`): detector determinista primero;
+   si no detecta, se intenta IA, pero cualquier error o salida no conforme también
+   cae al fallback.
+4. **Lead en `en_asesor`**: se omite la respuesta IA.
+5. **Turno obsoleto**: si el mensaje entrante tiene `idMensajeMeta` y la conversación
+   ya fue atendida con otro `idMensajeMeta`, se omite.
+6. **Límite diario** (`GEMINI_MAX_SOLICITUDES_DIA`): si se alcanzó, se usa el
+   flujo determinista.
+7. **Llamada a Gemini** (`ProveedorGemini`): con reintentos y backoff
+   `500ms*(intento-1)`. Clasificación de errores:
+   - `autenticacion`, `red`: no reintentables.
+   - `cuota`, `indisponible`, `timeout`: reintentables con backoff.
+   - `sin_repuesta`: cuando la IA no devuelve texto ni `status===completed`.
+   - `salida_invalida`: validación ZOD del esquema JSON.
+   - Fenced ``` stripping antes de `JSON.parse`.
+8. **Validación de salida** (`respuestaPropuestaValida`): longitud, sin ```, no
+   empieza con `{`, palabras prohibidas. Si falla → texto de guion por
+   `claveRespuesta`.
+9. **Aplicar interpretación** (`aplicarInterpretacion`): actualiza el lead con
+   los datos detectados (`nombre`, `correo`, `productos`, `cantidad`, `ciudad`).
+10. **Enviar respuesta** por `EnviarMensajeSaliente` (misma ventana de atención
+    y `DRY_RUN`).
+
+### Límites y controles
+
+- `GEMINI_MAX_LONGITUD_RESPUESTA` (800): longitud máxima de la respuesta propuesta.
+- `GEMINI_THINKING_LEVEL` (minimal|low|medium|high): nivel de "thinking" del modelo.
+- `GEMINI_HISTORIAL_LIMITE` (10): máximo de mensajes de historial a enviar a Gemini.
+- `GEMINI_INTENTOS` (2): número de intentos de retry.
+- `WHATSAPP_BOT_NUMEROS_PERMITIDOS`: lista de números que pueden activar el bot IA.
+- `WHATSAPP_ACCOUNTS` con `proveedor: meta`: en modo gemini, las cuentas Meta
+  continúan usando el flujo determinista dentro del webhook HTTP (se registra
+  warning al arranque).
+
+### Variable de entorno nueva
+
+Añadida a `.env.example`:
+
+- `WHATSAPP_RESPUESTAS_MODO` (reglas|gemini) — activa el modo IA.
+- `GEMINI_API_KEY` — clave de la API de Gemini (obligatoria si modo=gemini).
+- `GEMINI_MODEL` (default: `gemini-4-argon`) — modelo a usar.
+- `GEMINI_TIMEOUT_MS` (default: `10000`) — timeout por llamada.
+- `GEMINI_THINKING_LEVEL` (minimal|low|medium|high, default: `low`) — nivel de razonamiento.
+- `GEMINI_HISTORIAL_LIMITE` (default: `10`) — mensajes de historial máximo.
+- `GEMINI_MAX_OUTPUT_TOKENS` (default: `4096`) — tokens máximo de salida.
+- `GEMINI_INTENTOS` (default: `2`) — reintentos ante error.
+- `GEMINI_MAX_SOLICITUDES_DIA` (default: `0` = ilimitado) — límite diario de llamadas.
+- `GEMINI_MAX_LONGITUD_RESPUESTA` (default: `800`) — caracteres máximo de respuesta.
+
+### Nota sobre `WHATSAPP_DRY_RUN`
+
+`WHATSAPP_DRY_RUN=true` no detiene el gasto de la API de Gemini (las llamadas
+a la IA se cuentan independientemente). Documentar esto en logs o CI.
 
 ## Docker (PostgreSQL y la pila completa)
 
