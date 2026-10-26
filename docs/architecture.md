@@ -71,15 +71,19 @@ declarado usan `PROVEEDOR_MENSAJERIA_DEFECTO` (por defecto `360dialog`).
    `ProcesarMensajeAutorespuesta` (puerto `whatsapp/application/ports/procesador-autorespuesta`)
    construye un `ContextoMensajeLead` y llama a `procesarMensajeLead`, que
    interpreta y aplica el mensaje: crea o continúa el `lead` de la conversación,
-   extrae datos del primer mensaje y correcciones explícitas, guarda el campo
-   capturado y responde con el texto del guion vía `EnviarMensajeSaliente`. Las
-   correcciones de nombre, correo, ciudad, cantidad y modelo conservan el paso
-   pendiente y no reinician el flujo. `evaluarPaso` queda como utilidad aislada
-   para validar un dato suelto; no participa del flujo del bot. Antes de validar
-   el paso, `detectar-solicitud-humano` reconoce pedidos de atención humana: el
-   lead pasa a `en_asesor`, se pausan sus seguimientos y se responde
-   `paso_a_asesor`; el bot deja de responder esa conversación. Es best-effort:
-   un fallo se registra y no rompe el webhook.
+   extrae datos del primer mensaje, CTA del sitio y correcciones explícitas,
+   guarda el campo capturado y responde con el texto del guion vía
+   `EnviarMensajeSaliente`. Las correcciones de nombre, correo, ciudad, cantidad y
+   modelo conservan el paso pendiente y no reinician el flujo. Una corrección con
+   varios modelos se agrega a la lista existente en lugar de reemplazarla. Los CTA
+   de producto guardan el producto; el CTA global no inventa producto. En ambos
+   casos se pide el siguiente dato sin enviar información del producto.
+   `evaluarPaso` queda como utilidad aislada para validar un dato suelto; no
+   participa del flujo del bot. Antes de validar el paso,
+   `detectar-solicitud-humano` reconoce pedidos de atención humana: el lead pasa
+   a `en_asesor`, se pausan sus seguimientos y se responde `paso_a_asesor`; el
+   bot deja de responder esa conversación. Es best-effort: un fallo se registra y
+   no rompe el webhook.
 10. Los estados (`statuses`) actualizan el estado del mensaje existente si existe;
     los ecos de Coexistence (`smb_message_echoes`) se registran como salientes
     humanos (`insertarSalienteHumano`), pausan seguimientos con motivo
@@ -182,7 +186,9 @@ Definido con Drizzle en `shared/db/schema/`. Tablas:
 - `leads` — un lead por conversación (único) con `nombre`, `correo`, `modelos`,
   `cantidad`, `ciudad`, `paso_actual`, `estado` y `completado_en`.
 - `guion_flujo_lead` — textos editables del bot (`clave` único, `orden`, `texto`,
-  `activo`); se siembran con `db:seed` e incluyen `paso_a_asesor`.
+  `activo`); se siembran con `db:seed` e incluyen `paso_a_asesor`,
+  `producto_agregado` y `productos_agregados`. Si falta este último se usa el
+  singular como respaldo.
 
 Las fechas usan `timestamptz`. Las migraciones se generan con `npm run db:generate`.
 El método `ProcesarSeguimientosPendientes` de los repositorios Drizzle filtra por
