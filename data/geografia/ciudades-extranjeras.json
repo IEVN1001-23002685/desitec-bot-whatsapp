@@ -1,0 +1,1724 @@
+{
+  "fuente": "Catálogo curado de destinos extranjeros para desambiguar solicitudes de entrega",
+  "actualizadoEn": "2026-10-26",
+  "nota": "Las ciudades marcadas como ambiguas no se clasifican como extranjeras sin una segunda señal (país, región o frase explícita).",
+  "paises": [
+    {
+      "nombre": "Estados Unidos",
+      "aliases": [
+        "estados unidos",
+        "estados unidos de america",
+        "eeuu",
+        "ee uu",
+        "usa",
+        "eua",
+        "united states"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Miami",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Nueva York",
+          "aliases": [
+            "new york",
+            "nyc"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Los Ángeles",
+          "aliases": [
+            "los angeles"
+          ],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Houston",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Dallas",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Chicago",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "San Antonio",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Phoenix",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Las Vegas",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Orlando",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "San Francisco",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Seattle",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Boston",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Washington D. C.",
+          "aliases": [
+            "washington",
+            "washington dc"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Atlanta",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Denver",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "San Diego",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Austin",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Filadelfia",
+          "aliases": [
+            "philadelphia"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Canadá",
+      "aliases": [
+        "canada"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Toronto",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Vancouver",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Montreal",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Ottawa",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Calgary",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "España",
+      "aliases": [
+        "espana"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Madrid",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "También existe Madrid, Colima, México"
+        },
+        {
+          "nombre": "Barcelona",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Valencia",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Sevilla",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Bilbao",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Málaga",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Zaragoza",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existe Zaragoza, Coahuila, México"
+        },
+        {
+          "nombre": "Murcia",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Palma",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Las Palmas",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Tenerife",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Francia",
+      "aliases": [
+        "francia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "París",
+          "aliases": [
+            "paris"
+          ],
+          "ambigua": true,
+          "nota": "También existen Paris, Texas, y el nombre propio Paris"
+        },
+        {
+          "nombre": "Lyon",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Marsella",
+          "aliases": [
+            "marseille"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Niza",
+          "aliases": [
+            "nice"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Toulouse",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Reino Unido",
+      "aliases": [
+        "reino unido",
+        "inglaterra",
+        "uk",
+        "united kingdom"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Londres",
+          "aliases": [
+            "london"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Manchester",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Birmingham",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Liverpool",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Edimburgo",
+          "aliases": [
+            "edinburgh"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Alemania",
+      "aliases": [
+        "alemania",
+        "germany"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Berlín",
+          "aliases": [
+            "berlin"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Múnich",
+          "aliases": [
+            "munich"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Hamburgo",
+          "aliases": [
+            "hamburg"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Fráncfort",
+          "aliases": [
+            "frankfurt"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Colonia",
+          "aliases": [
+            "cologne",
+            "koln"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Stuttgart",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Italia",
+      "aliases": [
+        "italia",
+        "italy"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Roma",
+          "aliases": [
+            "rome"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Milán",
+          "aliases": [
+            "milan"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Nápoles",
+          "aliases": [
+            "naples",
+            "napoli"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Turín",
+          "aliases": [
+            "torino"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Florencia",
+          "aliases": [
+            "florence",
+            "firenze"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Venecia",
+          "aliases": [
+            "venice",
+            "venezia"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Portugal",
+      "aliases": [
+        "portugal"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Lisboa",
+          "aliases": [
+            "lisbon"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Oporto",
+          "aliases": [
+            "porto"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Países Bajos",
+      "aliases": [
+        "paises bajos",
+        "holanda",
+        "netherlands"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Ámsterdam",
+          "aliases": [
+            "amsterdam"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Róterdam",
+          "aliases": [
+            "rotterdam"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Bélgica",
+      "aliases": [
+        "belgica",
+        "belgium"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Bruselas",
+          "aliases": [
+            "brussels"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Amberes",
+          "aliases": [
+            "antwerp"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Suiza",
+      "aliases": [
+        "suiza",
+        "switzerland"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Zúrich",
+          "aliases": [
+            "zurich"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Ginebra",
+          "aliases": [
+            "geneva"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Austria",
+      "aliases": [
+        "austria"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Viena",
+          "aliases": [
+            "vienna"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Suecia",
+      "aliases": [
+        "suecia",
+        "sweden"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Estocolmo",
+          "aliases": [
+            "stockholm"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Noruega",
+      "aliases": [
+        "noruega",
+        "norway"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Oslo",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Dinamarca",
+      "aliases": [
+        "dinamarca",
+        "denmark"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Copenhague",
+          "aliases": [
+            "copenhagen"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Irlanda",
+      "aliases": [
+        "irlanda",
+        "ireland"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Dublín",
+          "aliases": [
+            "dublin"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Polonia",
+      "aliases": [
+        "polonia",
+        "poland"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Varsovia",
+          "aliases": [
+            "warsaw"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Grecia",
+      "aliases": [
+        "grecia",
+        "greece"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Atenas",
+          "aliases": [
+            "athens"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Turquía",
+      "aliases": [
+        "turquia",
+        "turkey"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Estambul",
+          "aliases": [
+            "istanbul"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Ankara",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Rusia",
+      "aliases": [
+        "rusia",
+        "russia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Moscú",
+          "aliases": [
+            "moscow"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "San Petersburgo",
+          "aliases": [
+            "saint petersburg"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "China",
+      "aliases": [
+        "china"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Pekín",
+          "aliases": [
+            "beijing"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Shanghái",
+          "aliases": [
+            "shanghai"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Cantón",
+          "aliases": [
+            "guangzhou"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Shenzhen",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Japón",
+      "aliases": [
+        "japon",
+        "japan"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Tokio",
+          "aliases": [
+            "tokyo"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Osaka",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Kioto",
+          "aliases": [
+            "kyoto"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Corea del Sur",
+      "aliases": [
+        "corea del sur",
+        "corea",
+        "south korea"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Seúl",
+          "aliases": [
+            "seoul"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Busan",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "India",
+      "aliases": [
+        "india"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Nueva Delhi",
+          "aliases": [
+            "new delhi"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Bombay",
+          "aliases": [
+            "mumbai"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Bangalore",
+          "aliases": [
+            "bengaluru"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Australia",
+      "aliases": [
+        "australia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Sídney",
+          "aliases": [
+            "sydney"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Melbourne",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Brisbane",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Perth",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Nueva Zelanda",
+      "aliases": [
+        "nueva zelanda",
+        "new zealand"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Auckland",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Wellington",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Brasil",
+      "aliases": [
+        "brasil",
+        "brazil"
+      ],
+      "ciudades": [
+        {
+          "nombre": "São Paulo",
+          "aliases": [
+            "sao paulo"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Río de Janeiro",
+          "aliases": [
+            "rio de janeiro"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Brasilia",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Salvador",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Curitiba",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Porto Alegre",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Argentina",
+      "aliases": [
+        "argentina"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Buenos Aires",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Córdoba",
+          "aliases": [
+            "cordoba"
+          ],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Rosario",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Mendoza",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Chile",
+      "aliases": [
+        "chile"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Santiago",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen muchas localidades mexicanas llamadas Santiago"
+        },
+        {
+          "nombre": "Valparaíso",
+          "aliases": [
+            "valparaiso"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Concepción",
+          "aliases": [
+            "concepcion"
+          ],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Colombia",
+      "aliases": [
+        "colombia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Bogotá",
+          "aliases": [
+            "bogota"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Medellín",
+          "aliases": [
+            "medellin"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Cali",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Cartagena",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Barranquilla",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Perú",
+      "aliases": [
+        "peru"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Lima",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Arequipa",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Cusco",
+          "aliases": [
+            "cuzco"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Ecuador",
+      "aliases": [
+        "ecuador"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Quito",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Guayaquil",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Cuenca",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Venezuela",
+      "aliases": [
+        "venezuela"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Caracas",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Maracaibo",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Valencia",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Uruguay",
+      "aliases": [
+        "uruguay"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Montevideo",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Punta del Este",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Paraguay",
+      "aliases": [
+        "paraguay"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Asunción",
+          "aliases": [
+            "asuncion"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Bolivia",
+      "aliases": [
+        "bolivia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "La Paz",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "También es la capital de Baja California Sur, México"
+        },
+        {
+          "nombre": "Santa Cruz",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        },
+        {
+          "nombre": "Cochabamba",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Guatemala",
+      "aliases": [
+        "guatemala"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Ciudad de Guatemala",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Antigua Guatemala",
+          "aliases": [
+            "antigua"
+          ],
+          "ambigua": true,
+          "nota": "Existe Antigua, Veracruz, México"
+        },
+        {
+          "nombre": "Quetzaltenango",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Costa Rica",
+      "aliases": [
+        "costa rica"
+      ],
+      "ciudades": [
+        {
+          "nombre": "San José",
+          "aliases": [
+            "san jose"
+          ],
+          "ambigua": true,
+          "nota": "Existen muchas localidades mexicanas llamadas San José"
+        },
+        {
+          "nombre": "Liberia",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Panamá",
+      "aliases": [
+        "panama"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Ciudad de Panamá",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Colón",
+          "aliases": [
+            "colon"
+          ],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Honduras",
+      "aliases": [
+        "honduras"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Tegucigalpa",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "San Pedro Sula",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "El Salvador",
+      "aliases": [
+        "el salvador"
+      ],
+      "ciudades": [
+        {
+          "nombre": "San Salvador",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Nicaragua",
+      "aliases": [
+        "nicaragua"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Managua",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Granada",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen localidades mexicanas con el mismo nombre"
+        }
+      ]
+    },
+    {
+      "nombre": "Cuba",
+      "aliases": [
+        "cuba"
+      ],
+      "ciudades": [
+        {
+          "nombre": "La Habana",
+          "aliases": [
+            "havana"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Santiago de Cuba",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "República Dominicana",
+      "aliases": [
+        "republica dominicana",
+        "dominican republic"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Santo Domingo",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Punta Cana",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Puerto Rico",
+      "aliases": [
+        "puerto rico"
+      ],
+      "ciudades": [
+        {
+          "nombre": "San Juan",
+          "aliases": [],
+          "ambigua": true,
+          "nota": "Existen muchas localidades mexicanas llamadas San Juan"
+        }
+      ]
+    },
+    {
+      "nombre": "Belice",
+      "aliases": [
+        "belice",
+        "belize"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Belmopán",
+          "aliases": [
+            "belmopan"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Ciudad de Belice",
+          "aliases": [
+            "belize city"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Egipto",
+      "aliases": [
+        "egipto",
+        "egypt"
+      ],
+      "ciudades": [
+        {
+          "nombre": "El Cairo",
+          "aliases": [
+            "cairo"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Sudáfrica",
+      "aliases": [
+        "sudafrica",
+        "south africa"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Ciudad del Cabo",
+          "aliases": [
+            "cape town"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Johannesburgo",
+          "aliases": [
+            "johannesburg"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Emiratos Árabes Unidos",
+      "aliases": [
+        "emiratos arabes unidos",
+        "emiratos arabes",
+        "uae"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Dubái",
+          "aliases": [
+            "dubai"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Abu Dabi",
+          "aliases": [
+            "abu dhabi"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Israel",
+      "aliases": [
+        "israel"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Tel Aviv",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Jerusalén",
+          "aliases": [
+            "jerusalen",
+            "jerusalem"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Arabia Saudita",
+      "aliases": [
+        "arabia saudita",
+        "saudi arabia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Riad",
+          "aliases": [
+            "riyadh"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Filipinas",
+      "aliases": [
+        "filipinas",
+        "philippines"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Manila",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Indonesia",
+      "aliases": [
+        "indonesia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Yakarta",
+          "aliases": [
+            "jakarta"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Bali",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Tailandia",
+      "aliases": [
+        "tailandia",
+        "thailand"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Bangkok",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Vietnam",
+      "aliases": [
+        "vietnam"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Hanói",
+          "aliases": [
+            "hanoi"
+          ],
+          "ambigua": false,
+          "nota": ""
+        },
+        {
+          "nombre": "Ciudad Ho Chi Minh",
+          "aliases": [
+            "ho chi minh"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Singapur",
+      "aliases": [
+        "singapur",
+        "singapore"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Singapur",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Malasia",
+      "aliases": [
+        "malasia",
+        "malaysia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Kuala Lumpur",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Ucrania",
+      "aliases": [
+        "ucrania",
+        "ukraine"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Kiev",
+          "aliases": [
+            "kyiv"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Rumania",
+      "aliases": [
+        "rumania",
+        "romania"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Bucarest",
+          "aliases": [
+            "bucharest"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Hungría",
+      "aliases": [
+        "hungria",
+        "hungary"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Budapest",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "República Checa",
+      "aliases": [
+        "republica checa",
+        "czech republic",
+        "chequia"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Praga",
+          "aliases": [
+            "prague"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Finlandia",
+      "aliases": [
+        "finlandia",
+        "finland"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Helsinki",
+          "aliases": [],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    },
+    {
+      "nombre": "Islandia",
+      "aliases": [
+        "islandia",
+        "iceland"
+      ],
+      "ciudades": [
+        {
+          "nombre": "Reikiavik",
+          "aliases": [
+            "reykjavik"
+          ],
+          "ambigua": false,
+          "nota": ""
+        }
+      ]
+    }
+  ]
+}
