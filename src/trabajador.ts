@@ -13,6 +13,10 @@ import { ProcesarSeguimientosPendientes } from './modules/followups/application/
 import { ProcesarMensajeAutorespuesta } from './modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
 import { RepositorioDrizzleGuionLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-guion-lead.js'
 import { RepositorioDrizzleLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-lead.js'
+import { ProcesarMensajeAutorespuestaIA } from './modules/ia/application/use-cases/procesar-mensaje-autorespuesta-ia.js'
+import { ProveedorGemini } from './modules/ia/infrastructure/providers/proveedor-gemini.js'
+import { crearClienteGenAI } from './modules/ia/infrastructure/providers/cliente-genai.js'
+import { RepositorioDrizzleMensaje } from './modules/conversations/infrastructure/repositories/repositorio-drizzle-mensaje.js'
 import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
 import { ProcesarEventosWebhookPendientes } from './modules/whatsapp/application/use-cases/procesar-eventos-webhook-pendientes.js'
 import { ProcesarPayloadWhatsApp } from './modules/whatsapp/application/use-cases/procesar-payload-whatsapp.js'
@@ -64,16 +68,63 @@ async function principal(): Promise<void> {
     new ResolverCredencialCuentaEntorno(),
     { ventanaAtencionActiva: entorno.WHATSAPP_VENTANA_ATENCION_ACTIVA },
   )
-  const procesadorAutorespuesta = entorno.WHATSAPP_BOT_ACTIVO
-    ? new ProcesarMensajeAutorespuesta(
-        new RepositorioDrizzleLead(baseDeDatos),
-        new RepositorioDrizzleGuionLead(baseDeDatos),
+
+  const repositorioLead = new RepositorioDrizzleLead(baseDeDatos)
+  const repositorioGuionLead = new RepositorioDrizzleGuionLead(baseDeDatos)
+  let procesadorAutorespuesta = undefined
+  if (entorno.WHATSAPP_BOT_ACTIVO) {
+    const determinista = new ProcesarMensajeAutorespuesta(
+      repositorioLead,
+      repositorioGuionLead,
+      enviarMensaje,
+      entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
+      pausadorSeguimientos,
+      registrador,
+    )
+    if (entorno.WHATSAPP_RESPUESTAS_MODO === 'gemini') {
+      const claveApi = entorno.GEMINI_API_KEY
+      if (!claveApi) {
+        throw new Error('GEMINI_API_KEY es obligatoria en modo gemini')
+      }
+      if (entorno.WHATSAPP_ACCOUNTS.some((cuenta) => cuenta.proveedor === 'meta')) {
+        registrador.warn(
+          {},
+          'modo gemini: las cuentas con proveedor meta continuan con el flujo determinista de la ruta http',
+        )
+      }
+      procesadorAutorespuesta = new ProcesarMensajeAutorespuestaIA(
+        repositorioLead,
+        new RepositorioDrizzleMensaje(baseDeDatos),
+        repositorioGuionLead,
         enviarMensaje,
+        new ProveedorGemini(
+          {
+            modelo: entorno.GEMINI_MODEL,
+            nivelRazonamiento: entorno.GEMINI_THINKING_LEVEL,
+            maxTokensSalida: entorno.GEMINI_MAX_OUTPUT_TOKENS,
+            intentos: entorno.GEMINI_INTENTOS,
+            limiteHistorial: entorno.GEMINI_HISTORIAL_LIMITE,
+            registrador,
+          },
+          crearClienteGenAI({
+            claveApi,
+            timeoutMs: entorno.GEMINI_TIMEOUT_MS,
+          }),
+        ),
+        determinista,
+        {
+          limiteHistorial: entorno.GEMINI_HISTORIAL_LIMITE,
+          maxLongitudRespuesta: entorno.GEMINI_MAX_LONGITUD_RESPUESTA,
+          maxSolicitudesDia: entorno.GEMINI_MAX_SOLICITUDES_DIA,
+        },
         entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
         pausadorSeguimientos,
         registrador,
       )
-    : undefined
+    } else {
+      procesadorAutorespuesta = determinista
+    }
+  }
 
   const procesarEventos = new ProcesarEventosWebhookPendientes(
     new RepositorioDrizzleEventoWebhook(baseDeDatos),
@@ -172,6 +223,8 @@ async function principal(): Promise<void> {
       dryRun: entorno.WHATSAPP_DRY_RUN,
       seguimientosActivos,
       botActivo: entorno.WHATSAPP_BOT_ACTIVO,
+      modoRespuestas: entorno.WHATSAPP_RESPUESTAS_MODO,
+      modeloIA: entorno.WHATSAPP_RESPUESTAS_MODO === 'gemini' ? entorno.GEMINI_MODEL : null,
     },
     'worker de seguimientos y eventos iniciado',
   )
