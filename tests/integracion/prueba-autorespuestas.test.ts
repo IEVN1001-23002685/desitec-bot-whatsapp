@@ -144,6 +144,50 @@ describe('Captura de leads contra PostgreSQL real', () => {
     expect(salientes[0]?.cuerpo).toBe(textoGuion('bienvenida'))
   })
 
+  it('captura producto, cantidad y ciudad desde el primer mensaje', async () => {
+    expect(
+      await enviarMensaje(
+        'wamid.BOT.P1',
+        'Hola, necesito cotizar 6 estaciones manuales para Querétaro',
+      ),
+    ).toBe(200)
+
+    const filasLead = await baseDeDatos.select().from(leads)
+    expect(filasLead[0]).toMatchObject({
+      nombre: null,
+      correo: null,
+      modelos: 'estaciones manuales (6)',
+      cantidad: 6,
+      ciudad: 'Querétaro',
+      pasoActual: 'nombre',
+      estado: 'capturando',
+    })
+
+    const salientes = await baseDeDatos
+      .select()
+      .from(mensajes)
+      .where(eq(mensajes.direccion, 'saliente'))
+    expect(salientes).toHaveLength(1)
+    expect(salientes[0]?.cuerpo).toBe(textoGuion('bienvenida'))
+
+    expect(await enviarMensaje('wamid.BOT.P2', 'Ana')).toBe(200)
+    expect(await enviarMensaje('wamid.BOT.P3', 'ana@example.com')).toBe(200)
+
+    const filasFinales = await baseDeDatos.select().from(leads)
+    expect(filasFinales[0]).toMatchObject({
+      nombre: 'Ana',
+      correo: 'ana@example.com',
+      cantidad: 6,
+      ciudad: 'Querétaro',
+      estado: 'listo_pipedrive',
+    })
+    expect(proveedor.envios).toHaveLength(3)
+    expect(proveedor.envios[2]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('confirmacion'),
+    })
+  })
+
   it('captura todos los datos y completa el lead', async () => {
     expect(await enviarMensaje('wamid.BOT.F1', 'Hola')).toBe(200)
     expect(await enviarMensaje('wamid.BOT.F2', 'Ana')).toBe(200)
@@ -177,5 +221,34 @@ describe('Captura de leads contra PostgreSQL real', () => {
       tipo: 'text',
       cuerpo: textoGuion('correo_invalido'),
     })
+  })
+
+  it('deriva a un asesor sin guardar la solicitud como dato del lead', async () => {
+    expect(await enviarMensaje('wamid.BOT.A1', 'Hola')).toBe(200)
+    expect(await enviarMensaje('wamid.BOT.A2', 'Ana')).toBe(200)
+    expect(await enviarMensaje('wamid.BOT.A3', 'ana@example.com')).toBe(200)
+    expect(await enviarMensaje('wamid.BOT.A4', 'Modelo X')).toBe(200)
+    expect(await enviarMensaje('wamid.BOT.A5', 'Quiero hablar con una persona')).toBe(200)
+
+    const filasLead = await baseDeDatos.select().from(leads)
+    expect(filasLead[0]).toMatchObject({
+      nombre: 'Ana',
+      correo: 'ana@example.com',
+      modelos: 'Modelo X',
+      cantidad: null,
+      pasoActual: 'cantidad',
+      estado: 'en_asesor',
+    })
+    expect(proveedor.envios).toHaveLength(5)
+    expect(proveedor.envios[4]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('paso_a_asesor'),
+    })
+
+    expect(await enviarMensaje('wamid.BOT.A6', '3')).toBe(200)
+
+    expect(proveedor.envios).toHaveLength(5)
+    const filasDespues = await baseDeDatos.select().from(leads)
+    expect(filasDespues[0]).toMatchObject({ cantidad: null, estado: 'en_asesor' })
   })
 })

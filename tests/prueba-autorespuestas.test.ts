@@ -73,6 +73,50 @@ describe('ProcesarMensajeAutorespuesta', () => {
     expect(proveedor.envios[0]).toMatchObject({ tipo: 'text', cuerpo: textoGuion('bienvenida') })
   })
 
+  it('atiende el CTA global pidiendo el nombre sin inventar un producto', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(
+      entrada(
+        'Hola, me gustaría recibir asesoría de un especialista para elegir la solución adecuada. ¿Me pueden apoyar?',
+      ),
+    )
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: null,
+      cantidad: null,
+      pasoActual: 'nombre',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[0]).toMatchObject({ cuerpo: textoGuion('bienvenida') })
+  })
+
+  it('guarda el producto del CTA y pide el siguiente dato sin dar informacion', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(
+      entrada('Quiero información del producto: Garrett Arco Detector de Metales PD 6500i'),
+    )
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Garrett Arco Detector de Metales PD 6500i',
+      pasoActual: 'nombre',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[0]).toMatchObject({ cuerpo: textoGuion('bienvenida') })
+  })
+
+  it('captura varios modelos en el primer mensaje', async () => {
+    const { almacen, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola, necesito cotizar Modelo Y y Modelo Z'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Modelo Y; Modelo Z',
+      pasoActual: 'nombre',
+    })
+  })
+
   it('captura todos los datos y completa el lead', async () => {
     const { almacen, proveedor, procesar } = crearProcesador()
 
@@ -448,6 +492,26 @@ describe('ProcesarMensajeAutorespuesta', () => {
       estado: 'capturando',
     })
     expect(proveedor.envios[4]).toMatchObject({ cuerpo: textoGuion('producto_agregado') })
+  })
+
+  it('agrega varios modelos corregidos y usa el guion singular si falta el plural', async () => {
+    const entradas = guionLeadPrueba().filter((item) => item.clave !== 'productos_agregados')
+    const { almacen, proveedor, procesar } = crearProcesador(entradas)
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Ana'))
+    await procesar.procesar(entrada('ana@example.com'))
+    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('3'))
+    await procesar.procesar(entrada('mejor los modelos Modelo Y y Modelo Z'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      modelos: 'Modelo X; Modelo Y; Modelo Z',
+      cantidad: null,
+      pasoActual: 'cantidad',
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('producto_agregado') })
   })
 
   it('aplica correcciones de correo y ciudad sin reiniciar el flujo', async () => {
