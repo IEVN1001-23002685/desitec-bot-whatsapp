@@ -20,7 +20,7 @@ import {
   plantillasWhatsApp,
   reglasSeguimiento,
 } from '../../src/shared/db/schema/index.js'
-import { ProveedorMensajesFalso } from '../helpers/en-memoria.js'
+import { ProveedorMensajesFalso, ResolverCredencialCuentaFalso } from '../helpers/en-memoria.js'
 import type { BaseDeDatos } from '../../src/shared/db/tipos.js'
 
 type Escenario = {
@@ -114,6 +114,7 @@ describe('Seguimientos contra PostgreSQL real', () => {
     expect(destino).not.toBeNull()
     expect(destino?.idNumeroTelefono).toBe('111111111111111')
     expect(destino?.tokenAcceso).toBe('token-comercial')
+    expect(destino?.proveedor).toBe('meta')
     expect(destino?.idWa).toBe('5215512345678')
     expect(destino?.nombreContacto).toBe('Cliente')
     expect(destino?.nombreCuenta).toBe('Linea Comercial')
@@ -141,6 +142,7 @@ describe('Seguimientos contra PostgreSQL real', () => {
       new RepositorioDrizzleDestinoSeguimiento(baseDeDatos),
       new VerificadorEstadoComercialLocal(),
       proveedor,
+      new ResolverCredencialCuentaFalso(),
       new TransaccionDrizzleMensajeEntrante(baseDeDatos),
     )
     const procesar = new ProcesarSeguimientosPendientes(seguimientos, enviarSeguimiento)
@@ -181,6 +183,7 @@ describe('Seguimientos contra PostgreSQL real', () => {
       new RepositorioDrizzleDestinoSeguimiento(baseDeDatos),
       new VerificadorEstadoComercialLocal(),
       proveedor,
+      new ResolverCredencialCuentaFalso(),
       new TransaccionDrizzleMensajeEntrante(baseDeDatos),
     )
     const procesar = new ProcesarSeguimientosPendientes(seguimientos, enviarSeguimiento)
@@ -258,6 +261,7 @@ describe('Seguimientos contra PostgreSQL real', () => {
       new RepositorioDrizzleDestinoSeguimiento(baseDeDatos),
       new VerificadorEstadoComercialLocal(),
       proveedor,
+      new ResolverCredencialCuentaFalso(),
       new TransaccionDrizzleMensajeEntrante(baseDeDatos),
     )
     const procesar = new ProcesarSeguimientosPendientes(seguimientos, enviarSeguimiento)
