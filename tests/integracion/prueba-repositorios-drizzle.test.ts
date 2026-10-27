@@ -44,6 +44,7 @@ describe('Repositorios Drizzle contra PostgreSQL real', () => {
     expect(comercial?.codigo).toBe('linea-comercial')
     expect(comercial?.estaActiva).toBe(true)
     expect(comercial?.tokenAcceso).toBe('token-comercial')
+    expect(comercial?.proveedor).toBe('meta')
 
     const porCodigo = await repositorio.buscarPorCodigo('linea-comercial')
     expect(porCodigo?.id).toBe(comercial?.id)
