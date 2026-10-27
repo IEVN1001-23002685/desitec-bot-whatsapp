@@ -18,6 +18,10 @@ import {
   rutasSeguimientos,
   type OpcionesRutasSeguimientos,
 } from './modules/followups/presentation/routes/rutas-seguimientos.js'
+import {
+  rutasSimulador,
+  type OpcionesRutasSimulador,
+} from './modules/simulador/presentation/routes/rutas-simulador.js'
 
 export type OpcionesCrearApp = {
   registrador: FastifyBaseLogger
@@ -25,6 +29,7 @@ export type OpcionesCrearApp = {
   webhook360?: OpcionesRutasWebhook360Dialog
   mensajes?: OpcionesRutasMensajes
   seguimientos?: OpcionesRutasSeguimientos
+  simulador?: OpcionesRutasSimulador
   bodyLimit?: number
 }
 
@@ -50,6 +55,9 @@ export function crearApp(opciones: OpcionesCrearApp): FastifyInstance {
   }
   if (opciones.seguimientos) {
     aplicacion.register(rutasSeguimientos(opciones.seguimientos))
+  }
+  if (opciones.simulador) {
+    aplicacion.register(rutasSimulador(opciones.simulador))
   }
 
   return aplicacion
