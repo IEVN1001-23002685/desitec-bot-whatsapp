@@ -14,7 +14,13 @@ export function registrarManejadorErrores(aplicacion: FastifyInstance): void {
 
     if (error instanceof ErrorDeAplicacion) {
       if (error.codigoEstado >= 500) {
-        solicitud.log.error({ codigo: error.codigo }, 'error de aplicación')
+        solicitud.log.error(
+          {
+            codigo: error.codigo,
+            motivo: error.message,
+          },
+          'error de aplicación',
+        )
       } else {
         solicitud.log.warn({ codigo: error.codigo }, 'solicitud rechazada')
       }
