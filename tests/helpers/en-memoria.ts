@@ -11,6 +11,7 @@ import type {
 import type {
   EntradaInsertarMensajeEntrante,
   EntradaInsertarMensajeSaliente,
+  MensajeReciente,
   RepositorioMensaje,
 } from '../../src/modules/conversations/domain/ports/repositorio-mensaje.js'
 import type { CuentaWhatsApp } from '../../src/modules/whatsapp/domain/entities/cuenta-whatsapp.js'
@@ -80,6 +81,7 @@ export type MensajeAlmacenado = {
   tipo: string
   cuerpo: string | null
   estado: string | null
+  cargaUtil: unknown
   creadoEn: Date
 }
 
@@ -200,6 +202,7 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
       tipo: entrada.tipo,
       cuerpo: entrada.cuerpo,
       estado: null,
+      cargaUtil: entrada.cargaUtil,
       creadoEn: entrada.marcaTiempoMeta ?? new Date(),
     }
     this.almacen.mensajes.push(mensaje)
@@ -216,6 +219,7 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
       tipo: entrada.tipo,
       cuerpo: entrada.cuerpo,
       estado: entrada.estado,
+      cargaUtil: entrada.cargaUtil ?? null,
       creadoEn: new Date(),
     }
     this.almacen.mensajes.push(mensaje)
@@ -240,6 +244,7 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
       tipo: entrada.tipo,
       cuerpo: entrada.cuerpo,
       estado: entrada.estado,
+      cargaUtil: entrada.cargaUtil ?? null,
       creadoEn: entrada.marcaTiempoMeta ?? new Date(),
     }
     this.almacen.mensajes.push(mensaje)
@@ -260,6 +265,22 @@ export class RepositorioMensajeEnMemoria implements RepositorioMensaje {
       }
     }
     return ultimo
+  }
+
+  async buscarUltimosMensajes(idConversacion: string, limite: number): Promise<MensajeReciente[]> {
+    const tope = Math.max(1, Math.min(50, Math.trunc(limite)))
+    return this.almacen.mensajes
+      .filter((mensaje) => mensaje.idConversacion === idConversacion)
+      .slice(-tope)
+      .map((mensaje) => ({
+        id: mensaje.id,
+        idMensajeMeta: mensaje.idMensajeMeta,
+        direccion: mensaje.direccion,
+        tipo: mensaje.tipo,
+        cuerpo: mensaje.cuerpo,
+        cargaUtil: mensaje.cargaUtil,
+        creadoEn: mensaje.creadoEn,
+      }))
   }
 }
 
@@ -387,10 +408,16 @@ export class RepositorioLeadEnMemoria implements RepositorioLead {
       id: `lead-${(this.almacen.leads.length + 1).toString()}`,
       idConversacion: entrada.idConversacion,
       nombre: null,
+      nombreRechazado: false,
       correo: null,
       modelos: null,
       cantidad: null,
+      cantidadAproximada: null,
       ciudad: null,
+      ubicacion: null,
+      productosCatalogo: [],
+      solicitudProductoTexto: null,
+      aclaracionPendiente: null,
       pasoActual: 'nombre',
       estado: 'capturando',
       completadoEn: null,
