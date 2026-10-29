@@ -50,6 +50,13 @@
       "when": 1793113798953,
       "tag": "0006_ubicacion_productos_lead",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793201695121,
+      "tag": "0007_broad_johnny_storm",
+      "breakpoints": true
     }
   ]
 }
