@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { randomUUID } from 'node:crypto'
+
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
@@ -10,7 +10,6 @@ import { crearRegistrador } from './shared/logging/registrador.js'
 import { esperarBaseDeDatos } from './shared/db/esperar-bd.js'
 import { guionFlujoLead, cuentasWhatsApp } from './shared/db/schema/index.js'
 import { GUION_FLUJO_LEAD_INICIAL } from './shared/db/guion-flujo-lead-inicial.js'
-import { VerificarWebhookWhatsApp } from './modules/whatsapp/application/use-cases/verificar-webhook-whatsapp.js'
 import { ResolverCuentaWhatsApp } from './modules/whatsapp/application/use-cases/resolver-cuenta-whatsapp.js'
 import { RegistrarMensajeEntrante } from './modules/whatsapp/application/use-cases/registrar-mensaje-entrante.js'
 import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/enviar-mensaje-saliente.js'
@@ -62,7 +61,9 @@ async function asegurarBaseDeDatos(cadenaConexion: string): Promise<void> {
   const poolAdmin = new Pool({ connectionString: adminUrl.toString(), max: 1 })
   try {
     await esperarBaseDeDatos(poolAdmin)
-    const encontrada = await poolAdmin.query('SELECT 1 FROM pg_database WHERE datname = $1', [nombre])
+    const encontrada = await poolAdmin.query('SELECT 1 FROM pg_database WHERE datname = $1', [
+      nombre,
+    ])
     if (encontrada.rowCount === 0) {
       const nombreSeguro = nombre.replaceAll('"', '""')
       await poolAdmin.query(`CREATE DATABASE "${nombreSeguro}"`)
@@ -80,9 +81,14 @@ async function asegurarBaseDeDatos(cadenaConexion: string): Promise<void> {
   }
 }
 
-async function sembrarDatos(baseDeDatos: ReturnType<typeof crearBaseDeDatos>['baseDeDatos']): Promise<void> {
+async function sembrarDatos(
+  baseDeDatos: ReturnType<typeof crearBaseDeDatos>['baseDeDatos'],
+): Promise<void> {
   for (const entrada of GUION_FLUJO_LEAD_INICIAL) {
-    await baseDeDatos.insert(guionFlujoLead).values(entrada).onConflictDoNothing({ target: guionFlujoLead.clave })
+    await baseDeDatos
+      .insert(guionFlujoLead)
+      .values(entrada)
+      .onConflictDoNothing({ target: guionFlujoLead.clave })
   }
 
   const existente = await baseDeDatos

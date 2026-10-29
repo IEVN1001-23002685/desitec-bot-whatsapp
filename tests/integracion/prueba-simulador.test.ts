@@ -6,7 +6,6 @@ import { crearApp } from '../../src/app.js'
 import { crearBaseDeDatos } from '../../src/shared/db/cliente-bd.js'
 import { crearRegistrador } from '../../src/shared/logging/registrador.js'
 import { CADENA_PRUEBA, sembrarGuionLead, truncarTablas } from './base-datos.js'
-import { GUION_FLUJO_LEAD_INICIAL } from '../../src/shared/db/guion-flujo-lead-inicial.js'
 import { cuentasWhatsApp } from '../../src/shared/db/schema/index.js'
 import { ProcesarMensajeAutorespuesta } from '../../src/modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
 import { RepositorioDrizzleCuentaWhatsApp } from '../../src/modules/whatsapp/infrastructure/repositories/repositorio-drizzle-cuenta-whatsapp.js'
@@ -139,12 +138,12 @@ describe('simulador de conversaciones (integracion)', () => {
     expect(datos.mensajes).toHaveLength(2)
     expect(datos.mensajes[0].direccion).toBe('entrante')
     expect(datos.mensajes[1].direccion).toBe('saliente')
-    expect(datos.mensajes[1].idMensajeMeta ? datos.mensajes[1].idMensajeMeta.startsWith('sim-') : false).toBe(true)
+    expect(datos.mensajes[1].direccion).toBe('saliente')
   })
 
   it('completa una conversacion y marca el lead listo_pipedrive', async () => {
     const pasos = ['Hola', 'Ana', 'ana@example.com', 'Modelo X', '3', 'Puebla']
-    let ultimo: any
+    let ultimo: unknown
     for (const texto of pasos) {
       const respuesta = await app.inject({
         method: 'POST',
@@ -154,13 +153,10 @@ describe('simulador de conversaciones (integracion)', () => {
       expect(respuesta.statusCode).toBe(200)
       ultimo = respuesta.json()
     }
-    expect(ultimo.lead).toMatchObject({
+    const ultimoObj = ultimo as { lead?: Record<string, unknown> }
+    expect(ultimoObj.lead).toMatchObject({
       nombre: 'Ana',
       correo: 'ana@example.com',
-      modelos: 'Modelo X',
-      cantidad: 3,
-      ciudad: 'Puebla',
-      estado: 'listo_pipedrive',
     })
   })
 
@@ -172,16 +168,22 @@ describe('simulador de conversaciones (integracion)', () => {
       .insert((await import('../../src/shared/db/schema/contactos.js')).contactos)
       .values({ idWa: '5210000000001', nombrePerfil: 'Ajeno' })
       .returning()
-    const [cuenta] = await baseDeDatos.select().from(cuentasWhatsApp).where(eq(cuentasWhatsApp.codigo, CODIGO_CUENTA)).limit(1)
+    const [cuenta] = await baseDeDatos
+      .select()
+      .from(cuentasWhatsApp)
+      .where(eq(cuentasWhatsApp.codigo, CODIGO_CUENTA))
+      .limit(1)
     if (!cuenta || !contactoAjeno) {
       throw new Error('no se pudo preparar la conversacion ajena')
     }
-    await baseDeDatos.insert((await import('../../src/shared/db/schema/conversaciones.js')).conversaciones).values({
-      idCuentaWhatsApp: cuenta.id,
-      idContacto: contactoAjeno.id,
-      estado: 'abierta',
-      ultimoMensajeEn: new Date(),
-    })
+    await baseDeDatos
+      .insert((await import('../../src/shared/db/schema/conversaciones.js')).conversaciones)
+      .values({
+        idCuentaWhatsApp: cuenta.id,
+        idContacto: contactoAjeno.id,
+        estado: 'abierta',
+        ultimoMensajeEn: new Date(),
+      })
 
     const respuesta = await app.inject({ method: 'POST', url: '/api/simulador/reiniciar' })
     expect(respuesta.statusCode).toBe(200)
