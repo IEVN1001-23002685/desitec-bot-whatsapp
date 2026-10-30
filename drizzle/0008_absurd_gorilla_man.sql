@@ -1,0 +1,1 @@
+ALTER TABLE "leads" ADD COLUMN "contexto_producto" jsonb;
