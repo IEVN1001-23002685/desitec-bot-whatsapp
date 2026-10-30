@@ -1,6 +1,11 @@
 import type { EstadoLead } from '../types/estado-lead.js'
 import type { PasoLead } from '../types/paso-lead.js'
-import type { AclaracionPendiente, ProductoLead, UbicacionLead } from '../types/datos-lead.js'
+import type {
+  AclaracionPendiente,
+  ContextoProductoLead,
+  ProductoLead,
+  UbicacionLead,
+} from '../types/datos-lead.js'
 
 export type Lead = {
   id: string
@@ -15,6 +20,7 @@ export type Lead = {
   ubicacion: UbicacionLead | null
   productosCatalogo: readonly ProductoLead[]
   solicitudProductoTexto: string | null
+  contextoProducto: ContextoProductoLead
   aclaracionPendiente: AclaracionPendiente | null
   pasoActual: PasoLead
   estado: EstadoLead
