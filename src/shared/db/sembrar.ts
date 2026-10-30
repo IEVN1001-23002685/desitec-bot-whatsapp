@@ -2,14 +2,24 @@ import 'dotenv/config'
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { cargarVariablesEntorno } from '../config/variables-entorno.js'
+import { referenciasPorProveedor } from '../config/referencias-credenciales.js'
 import { crearBaseDeDatos } from './cliente-bd.js'
 import { esperarBaseDeDatos } from './esperar-bd.js'
-import { cuentasWhatsApp, plantillasWhatsApp, reglasSeguimiento } from './schema/index.js'
+import {
+  cuentasWhatsApp,
+  guionFlujoLead,
+  plantillasWhatsApp,
+  reglasSeguimiento,
+} from './schema/index.js'
+import { GUION_FLUJO_LEAD_INICIAL } from './guion-flujo-lead-inicial.js'
 import type { BaseDeDatos } from './tipos.js'
 
 async function sembrarCuentas(baseDeDatos: BaseDeDatos): Promise<void> {
   const entorno = cargarVariablesEntorno()
   for (const cuenta of entorno.WHATSAPP_ACCOUNTS) {
+    const referencias = referenciasPorProveedor(cuenta.codigo, cuenta.proveedor)
+    const credencialRef = cuenta.credencialRef ?? referencias.credencialRef
+    const webhookSecretRef = cuenta.webhookSecretRef ?? referencias.webhookSecretRef
     await baseDeDatos
       .insert(cuentasWhatsApp)
       .values({
@@ -18,6 +28,9 @@ async function sembrarCuentas(baseDeDatos: BaseDeDatos): Promise<void> {
         idNumeroTelefono: cuenta.idNumeroTelefono,
         telefonoVisible: cuenta.telefonoVisible,
         tokenAcceso: cuenta.tokenAcceso ?? null,
+        proveedor: cuenta.proveedor,
+        credencialRef,
+        webhookSecretRef,
         estaActiva: cuenta.activa,
       })
       .onConflictDoUpdate({
@@ -27,6 +40,9 @@ async function sembrarCuentas(baseDeDatos: BaseDeDatos): Promise<void> {
           idNumeroTelefono: cuenta.idNumeroTelefono,
           telefonoVisible: cuenta.telefonoVisible,
           tokenAcceso: cuenta.tokenAcceso ?? null,
+          proveedor: cuenta.proveedor,
+          credencialRef,
+          webhookSecretRef,
           estaActiva: cuenta.activa,
           actualizadoEn: new Date(),
         },
@@ -73,9 +89,20 @@ async function sembrarPlantillas(baseDeDatos: BaseDeDatos): Promise<void> {
     demoraHoras: 24,
     idPlantilla: idPlantilla,
     cuerpo: 'Seguimiento a las 24 horas',
-    activa: true,
+    parametros: ['{{nombre}}'],
+    activa: false,
   })
-  console.info('Se sembro la plantilla y la regla de seguimiento base (seguimiento_24h)')
+  console.info('Se sembro la plantilla y la regla de seguimiento base (seguimiento_24h, inactiva)')
+}
+
+async function sembrarGuionLead(baseDeDatos: BaseDeDatos): Promise<void> {
+  for (const entrada of GUION_FLUJO_LEAD_INICIAL) {
+    await baseDeDatos
+      .insert(guionFlujoLead)
+      .values(entrada)
+      .onConflictDoNothing({ target: guionFlujoLead.clave })
+  }
+  console.info('Se sembro el guion del flujo de leads')
 }
 
 async function sembrar(): Promise<void> {
@@ -85,6 +112,7 @@ async function sembrar(): Promise<void> {
     await esperarBaseDeDatos(pool)
     await sembrarCuentas(baseDeDatos)
     await sembrarPlantillas(baseDeDatos)
+    await sembrarGuionLead(baseDeDatos)
   } finally {
     await cerrar()
   }
