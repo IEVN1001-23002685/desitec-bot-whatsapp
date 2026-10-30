@@ -49,6 +49,7 @@ import type {
 } from '../../src/modules/autorespuestas/domain/ports/repositorio-lead.js'
 import type { RepositorioGuionLead } from '../../src/modules/autorespuestas/domain/ports/repositorio-guion-lead.js'
 import { GUION_FLUJO_LEAD_INICIAL } from '../../src/shared/db/guion-flujo-lead-inicial.js'
+import { contextoProductoVacio } from '../../src/modules/autorespuestas/domain/types/datos-lead.js'
 import type { PlantillaWhatsApp } from '../../src/modules/followups/domain/entities/plantilla-whatsapp.js'
 import type { ReglaSeguimiento } from '../../src/modules/followups/domain/entities/regla-seguimiento.js'
 import type { SeguimientoProgramado } from '../../src/modules/followups/domain/entities/seguimiento-programado.js'
@@ -417,6 +418,7 @@ export class RepositorioLeadEnMemoria implements RepositorioLead {
       ubicacion: null,
       productosCatalogo: [],
       solicitudProductoTexto: null,
+      contextoProducto: contextoProductoVacio(),
       aclaracionPendiente: null,
       pasoActual: 'nombre',
       estado: 'capturando',
