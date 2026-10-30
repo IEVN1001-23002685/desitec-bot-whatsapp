@@ -1,5 +1,8 @@
+import { actualizacionDesdeLead } from '../../domain/services/aplicar-interpretacion.js'
 import { clavePedirPaso, procesarMensajeLead } from '../../domain/services/maquina-flujo-lead.js'
 import { esSolicitudDeHumano } from '../../domain/services/detectar-solicitud-humano.js'
+import { extraerUbicacionMensaje } from '../../domain/services/extraer-datos-lead.js'
+import type { EntradaGuion } from '../../domain/entities/entrada-guion.js'
 import type { Lead } from '../../domain/entities/lead.js'
 import type { RepositorioLead } from '../../domain/ports/repositorio-lead.js'
 import type { RepositorioGuionLead } from '../../domain/ports/repositorio-guion-lead.js'
@@ -7,6 +10,7 @@ import type { EnviarMensajeSaliente } from '../../../whatsapp/application/use-ca
 import type { EntradaProcesarAutorespuesta } from '../../../whatsapp/application/ports/procesador-autorespuesta.js'
 import type { PausadorSeguimientos } from '../../../whatsapp/application/ports/pausador-seguimientos.js'
 import type { RegistradorApp } from '../../../../shared/logging/registrador.js'
+import { interpolarVariables } from '../../../../shared/texto/interpolar-variables.js'
 import { coincideNumeroWhatsApp } from '../../../../shared/security/validadores.js'
 
 export class ErrorGuionLeadNoEncontrado extends Error {
@@ -51,13 +55,41 @@ export class ProcesarMensajeAutorespuesta {
       return
     }
 
-    if (lead.estado !== 'capturando') {
+    if (lead.estado !== 'capturando' && lead.estado !== 'fuera_de_cobertura') {
       return
     }
 
     if (entrada.texto === null) {
-      await this.responder(entrada, clavePedirPaso(lead.pasoActual))
+      if (lead.estado === 'capturando') {
+        await this.responder(entrada, clavePedirPaso(lead.pasoActual))
+      }
       return
+    }
+
+    if (lead.estado === 'fuera_de_cobertura') {
+      const ubicacion = extraerUbicacionMensaje(entrada.texto, {
+        aceptarTextoSimple: true,
+        buscarEnTexto: true,
+      })
+      if (ubicacion.tipo === 'incompleta') {
+        await this.responder(entrada, 'ubicacion_incompleta', {
+          ciudad: ubicacion.ubicacion.nombreMostrado,
+        })
+        return
+      }
+      if (ubicacion.tipo === 'ambigua') {
+        await this.responder(entrada, 'ubicacion_ambigua', {
+          candidatos: ubicacion.candidatos.map((candidato) => candidato.nombreMostrado).join('; '),
+        })
+        return
+      }
+      if (ubicacion.tipo === 'extranjera') {
+        await this.responder(entrada, 'fuera_de_cobertura')
+        return
+      }
+      if (ubicacion.tipo !== 'mexicana') {
+        return
+      }
     }
 
     await this.procesarTexto(entrada, lead, false)
@@ -72,14 +104,14 @@ export class ProcesarMensajeAutorespuesta {
       return
     }
 
-    const { cambios, claveRespuesta } = procesarMensajeLead({
+    const { cambios, claveRespuesta, variables } = procesarMensajeLead({
       lead,
       texto: entrada.texto,
       esPrimerMensaje,
     })
 
     await this.leads.actualizar(lead.id, cambios)
-    await this.responder(entrada, claveRespuesta)
+    await this.responder(entrada, claveRespuesta, variables)
   }
 
   private async derivarAHumano(
@@ -88,14 +120,8 @@ export class ProcesarMensajeAutorespuesta {
   ): Promise<void> {
     const actual = lead ?? (await this.leads.crear({ idConversacion: entrada.idConversacion }))
     await this.leads.actualizar(actual.id, {
-      nombre: actual.nombre,
-      correo: actual.correo,
-      modelos: actual.modelos,
-      cantidad: actual.cantidad,
-      ciudad: actual.ciudad,
-      pasoActual: actual.pasoActual,
+      ...actualizacionDesdeLead(actual),
       estado: 'en_asesor',
-      completadoEn: actual.completadoEn,
     })
     await this.pausarSeguimientos(entrada.idConversacion)
     this.registrador?.info(
@@ -130,15 +156,27 @@ export class ProcesarMensajeAutorespuesta {
     return this.numerosPermitidos.some((numero) => coincideNumeroWhatsApp(numero, idWa))
   }
 
-  private async responder(entrada: EntradaProcesarAutorespuesta, clave: string): Promise<void> {
+  private async buscarGuion(clave: string): Promise<EntradaGuion | null> {
     const guion = await this.guion.buscarActivaPorClave(clave)
+    if (guion || clave !== 'productos_agregados') {
+      return guion
+    }
+    return this.guion.buscarActivaPorClave('producto_agregado')
+  }
+
+  private async responder(
+    entrada: EntradaProcesarAutorespuesta,
+    clave: string,
+    variables: Record<string, string> = {},
+  ): Promise<void> {
+    const guion = await this.buscarGuion(clave)
     if (!guion) {
       throw new ErrorGuionLeadNoEncontrado(clave)
     }
     await this.enviarMensaje.ejecutar({
       codigoCuenta: entrada.codigoCuenta,
       idWa: entrada.idWa,
-      cuerpo: guion.texto,
+      cuerpo: interpolarVariables(guion.texto, variables),
     })
   }
 }

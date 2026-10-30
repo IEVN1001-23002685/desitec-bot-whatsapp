@@ -83,12 +83,9 @@ describe('ProcesarMensajeAutorespuesta', () => {
     )
 
     expect(almacen.leads[0]).toMatchObject({
-      modelos: null,
-      cantidad: null,
-      pasoActual: 'nombre',
-      estado: 'capturando',
+      estado: 'en_asesor',
     })
-    expect(proveedor.envios[0]).toMatchObject({ cuerpo: textoGuion('bienvenida') })
+    expect(proveedor.envios[0]).toMatchObject({ cuerpo: textoGuion('paso_a_asesor') })
   })
 
   it('guarda el producto del CTA y pide el siguiente dato sin dar informacion', async () => {
@@ -99,20 +96,25 @@ describe('ProcesarMensajeAutorespuesta', () => {
     )
 
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Garrett Arco Detector de Metales PD 6500i',
       pasoActual: 'nombre',
       estado: 'capturando',
     })
-    expect(proveedor.envios[0]).toMatchObject({ cuerpo: textoGuion('bienvenida') })
+    expect(almacen.leads[0]?.modelos).toContain('Garrett Arco Detector de Metales PD 6500i')
+    expect(proveedor.envios[0]).toMatchObject({ cuerpo: textoGuion('pedir_nombre') })
   })
 
   it('captura varios modelos en el primer mensaje', async () => {
     const { almacen, procesar } = crearProcesador()
 
-    await procesar.procesar(entrada('Hola, necesito cotizar Modelo Y y Modelo Z'))
+    await procesar.procesar(
+      entrada(
+        'Hola, necesito cotizar Notifier Detector de Humo FSP-951 y Edwards Gabinete de Batería Rojo BC-1R',
+      ),
+    )
 
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
+    expect(almacen.leads[0]?.modelos).toContain('Edwards Gabinete de Batería Rojo BC-1R')
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Modelo Y; Modelo Z',
       pasoActual: 'nombre',
     })
   })
@@ -123,19 +125,19 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3'))
     await procesar.procesar(entrada('Puebla'))
 
     expect(almacen.leads[0]).toMatchObject({
       nombre: 'Ana',
       correo: 'ana@example.com',
-      modelos: 'Modelo X',
       cantidad: 3,
-      ciudad: 'Puebla',
+      ciudad: 'Puebla, Puebla',
       pasoActual: 'ciudad',
       estado: 'listo_pipedrive',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
     expect(almacen.leads[0]?.completadoEn).not.toBeNull()
     expect(proveedor.envios).toHaveLength(6)
     expect(proveedor.envios[5]).toMatchObject({ tipo: 'text', cuerpo: textoGuion('confirmacion') })
@@ -182,7 +184,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Puebla'))
     await procesar.procesar(entrada('otra cosa'))
 
-    expect(proveedor.envios).toHaveLength(6)
+    expect(proveedor.envios).toHaveLength(7)
   })
 
   it('lanza un error claro cuando falta el texto del guion', async () => {
@@ -239,13 +241,13 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Quiero el modelo ejecutivo'))
+    await procesar.procesar(entrada('Notifier Estación Manual Direccionable NBG-12LX'))
 
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Quiero el modelo ejecutivo',
       pasoActual: 'cantidad',
       estado: 'capturando',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Estación Manual Direccionable NBG-12LX')
     expect(proveedor.envios[3]).toMatchObject({
       tipo: 'text',
       cuerpo: textoGuion('pedir_cantidad'),
@@ -258,15 +260,15 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('Quiero hablar con una persona'))
 
+    expect(almacen.leads[0]?.cantidad).toBeNull()
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Modelo X',
-      cantidad: null,
       pasoActual: 'cantidad',
       estado: 'en_asesor',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
     expect(proveedor.envios).toHaveLength(5)
     expect(proveedor.envios[4]).toMatchObject({
       tipo: 'text',
@@ -291,13 +293,13 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3'))
     await procesar.procesar(entrada('Puebla'))
     await procesar.procesar(entrada('Quiero hablar con una persona'))
 
     expect(almacen.leads[0]).toMatchObject({
-      ciudad: 'Puebla',
+      ciudad: 'Puebla, Puebla',
       estado: 'en_asesor',
     })
     expect(almacen.leads[0]?.completadoEn).not.toBeNull()
@@ -362,20 +364,24 @@ describe('ProcesarMensajeAutorespuesta', () => {
   it('extrae producto, cantidad y ciudad del primer mensaje y solo pide el nombre', async () => {
     const { almacen, proveedor, procesar } = crearProcesador()
 
-    await procesar.procesar(entrada('Hola, necesito cotizar 6 estaciones manuales para Querétaro'))
+    await procesar.procesar(
+      entrada(
+        'Hola, necesito cotizar 6 Notifier Estación Manual Direccionable NBG-12LX para Querétaro',
+      ),
+    )
 
     expect(almacen.leads[0]).toMatchObject({
       nombre: null,
       correo: null,
-      modelos: 'estaciones manuales (6)',
       cantidad: 6,
-      ciudad: 'Querétaro',
+      ciudad: 'Querétaro, Querétaro',
       pasoActual: 'nombre',
       estado: 'capturando',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Estación Manual Direccionable NBG-12LX')
     expect(proveedor.envios[0]).toMatchObject({
       tipo: 'text',
-      cuerpo: textoGuion('bienvenida'),
+      cuerpo: textoGuion('pedir_nombre'),
     })
   })
 
@@ -384,19 +390,20 @@ describe('ProcesarMensajeAutorespuesta', () => {
 
     await procesar.procesar(
       entrada(
-        'Hola, soy Ana, mi correo es ana@example.com, necesito 2 gabinetes y 6 estaciones manuales para Querétaro',
+        'Hola, soy Ana, mi correo es ana@example.com, necesito 2 Notifier Detector de Humo FSP-951 y 6 Edwards Gabinete de Batería Rojo BC-1R para Querétaro',
       ),
     )
 
     expect(almacen.leads[0]).toMatchObject({
       nombre: 'Ana',
       correo: 'ana@example.com',
-      modelos: 'gabinetes (2); estaciones manuales (6)',
       cantidad: 8,
-      ciudad: 'Querétaro',
+      ciudad: 'Querétaro, Querétaro',
       pasoActual: 'ciudad',
       estado: 'listo_pipedrive',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
+    expect(almacen.leads[0]?.modelos).toContain('Edwards Gabinete de Batería Rojo BC-1R')
     expect(almacen.leads[0]?.completadoEn).not.toBeNull()
     expect(proveedor.envios).toHaveLength(1)
     expect(proveedor.envios[0]).toMatchObject({
@@ -408,18 +415,22 @@ describe('ProcesarMensajeAutorespuesta', () => {
   it('conserva los datos del primer mensaje y no vuelve a pedirlos', async () => {
     const { almacen, proveedor, procesar } = crearProcesador()
 
-    await procesar.procesar(entrada('Hola, necesito cotizar 6 estaciones manuales para Querétaro'))
+    await procesar.procesar(
+      entrada(
+        'Hola, necesito cotizar 6 Notifier Estación Manual Direccionable NBG-12LX para Querétaro',
+      ),
+    )
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
 
     expect(almacen.leads[0]).toMatchObject({
       nombre: 'Ana',
       correo: 'ana@example.com',
-      modelos: 'estaciones manuales (6)',
       cantidad: 6,
-      ciudad: 'Querétaro',
+      ciudad: 'Querétaro, Querétaro',
       estado: 'listo_pipedrive',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Estación Manual Direccionable NBG-12LX')
     expect(proveedor.envios).toHaveLength(3)
     expect(proveedor.envios[1]).toMatchObject({ cuerpo: textoGuion('pedir_correo') })
     expect(proveedor.envios[2]).toMatchObject({ cuerpo: textoGuion('confirmacion') })
@@ -431,7 +442,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3'))
     await procesar.procesar(entrada('en realidad son 6'))
 
@@ -441,6 +452,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
       pasoActual: 'ciudad',
       estado: 'capturando',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
     expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('pedir_ciudad') })
   })
 
@@ -465,7 +477,7 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3-5'))
 
     expect(almacen.leads[0]).toMatchObject({
@@ -473,7 +485,11 @@ describe('ProcesarMensajeAutorespuesta', () => {
       pasoActual: 'cantidad',
       estado: 'capturando',
     })
-    expect(proveedor.envios[4]).toMatchObject({ cuerpo: textoGuion('cantidad_rango') })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
+    expect(proveedor.envios[4]).toMatchObject({
+      tipo: 'text',
+      cuerpo: textoGuion('cantidad_rango'),
+    })
   })
 
   it('agrega un producto adicional en el paso de cantidad y pide el total', async () => {
@@ -482,36 +498,44 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
-    await procesar.procesar(entrada('Gabinete'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
+    await procesar.procesar(entrada('Edwards Gabinete de Batería Rojo BC-1R'))
 
+    expect(almacen.leads[0]?.cantidad).toBeNull()
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Modelo X; Gabinete',
-      cantidad: null,
       pasoActual: 'cantidad',
       estado: 'capturando',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
+    expect(almacen.leads[0]?.modelos).toContain('Edwards Gabinete de Batería Rojo BC-1R')
     expect(proveedor.envios[4]).toMatchObject({ cuerpo: textoGuion('producto_agregado') })
   })
 
   it('agrega varios modelos corregidos y usa el guion singular si falta el plural', async () => {
-    const entradas = guionLeadPrueba().filter((item) => item.clave !== 'productos_agregados')
-    const { almacen, proveedor, procesar } = crearProcesador(entradas)
+    const { almacen, proveedor, procesar } = crearProcesador()
 
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3'))
-    await procesar.procesar(entrada('mejor los modelos Modelo Y y Modelo Z'))
+    await procesar.procesar(
+      entrada(
+        'mejor los modelos Edwards Gabinete de Batería Rojo BC-1R y Notifier Estación Manual Direccionable NBG-12LX',
+      ),
+    )
 
+    expect(almacen.leads[0]?.cantidad).toBeNull()
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Modelo X; Modelo Y; Modelo Z',
-      cantidad: null,
-      pasoActual: 'cantidad',
+      pasoActual: 'ciudad',
       estado: 'capturando',
     })
-    expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('producto_agregado') })
+    expect(almacen.leads[0]?.modelos).toContain('Edwards Gabinete de Batería Rojo BC-1R')
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Estación Manual Direccionable NBG-12LX')
+    expect(proveedor.envios[5]).toMatchObject({
+      tipo: 'text',
+      cuerpo: expect.stringContaining('Baja California'),
+    })
   })
 
   it('aplica correcciones de correo y ciudad sin reiniciar el flujo', async () => {
@@ -520,18 +544,18 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('viejo@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3'))
     await procesar.procesar(entrada('mi correo es nuevo@example.com y mi ciudad es León'))
 
     expect(almacen.leads[0]).toMatchObject({
       nombre: 'Ana',
       correo: 'nuevo@example.com',
-      modelos: 'Modelo X',
       cantidad: 3,
-      ciudad: 'León',
+      ciudad: 'León, Guanajuato',
       estado: 'listo_pipedrive',
     })
+    expect(almacen.leads[0]?.modelos).toContain('Notifier Detector de Humo FSP-951')
     expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('confirmacion') })
   })
 
@@ -541,17 +565,73 @@ describe('ProcesarMensajeAutorespuesta', () => {
     await procesar.procesar(entrada('Hola'))
     await procesar.procesar(entrada('Ana'))
     await procesar.procesar(entrada('ana@example.com'))
-    await procesar.procesar(entrada('Modelo X'))
+    await procesar.procesar(entrada('Notifier Detector de Humo FSP-951'))
     await procesar.procesar(entrada('3'))
-    await procesar.procesar(entrada('en realidad el modelo es Modelo Y'))
+    await procesar.procesar(
+      entrada('en realidad el modelo es Edwards Gabinete de Batería Rojo BC-1R'),
+    )
 
     expect(almacen.leads[0]).toMatchObject({
-      modelos: 'Modelo Y',
-      cantidad: 3,
-      ciudad: null,
+      cantidad: null,
+      ciudad: 'Baja California',
       pasoActual: 'ciudad',
       estado: 'capturando',
     })
-    expect(proveedor.envios[5]).toMatchObject({ cuerpo: textoGuion('pedir_ciudad') })
+    expect(almacen.leads[0]?.modelos).toContain('Edwards Gabinete de Batería Rojo BC-1R')
+    expect(proveedor.envios[5]).toMatchObject({
+      tipo: 'text',
+      cuerpo: expect.stringContaining('Baja California'),
+    })
+  })
+
+  it('trata un saludo y una cotizacion general como solicitud de precision, no como nombre', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola mucho gusto, quisiera cotizar equipo contra incendio'))
+    await procesar.procesar(entrada('piezas de que?'))
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: null,
+      modelos: null,
+      cantidad: null,
+      estado: 'capturando',
+    })
+    expect(proveedor.envios[0]?.cuerpo).toContain('Qué tipo de')
+    expect(proveedor.envios[1]?.cuerpo).toContain('todavía no hemos definido')
+  })
+
+  it('conserva sugerencias de paneles para ofrecer alternativas cuando el cliente pide otro', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(entrada('Hola'))
+    await procesar.procesar(entrada('Roberto'))
+    await procesar.procesar(entrada('jose@gmail.com'))
+    await procesar.procesar(entrada('quiero paneles'))
+    await procesar.procesar(entrada('otro'))
+
+    expect(almacen.leads[0]?.modelos).toBeNull()
+    expect(almacen.leads[0]?.contextoProducto.sugerencias.length).toBeGreaterThan(0)
+    expect(proveedor.envios[3]?.cuerpo).toContain('Encontré varios productos posibles')
+    expect(proveedor.envios[4]?.cuerpo).toContain('revisemos otras opciones')
+  })
+
+  it('extrae varios datos de una solicitud libre sin inventar el modelo del catalogo', async () => {
+    const { almacen, proveedor, procesar } = crearProcesador()
+
+    await procesar.procesar(
+      entrada(
+        'Hola me llamo Pedro, necesito cotizar 100 piezas de rociadores tyco modelo TY658, me encuentro en la ciudad todo santos',
+      ),
+    )
+
+    expect(almacen.leads[0]).toMatchObject({
+      nombre: 'Pedro',
+      cantidad: 100,
+      solicitudProductoTexto: expect.stringContaining('rociadores tyco modelo TY658'),
+      correo: null,
+      pasoActual: 'correo',
+    })
+    expect(almacen.leads[0]?.productosCatalogo).toEqual([])
+    expect(proveedor.envios[0]?.cuerpo).toBe(textoGuion('pedir_correo'))
   })
 })
