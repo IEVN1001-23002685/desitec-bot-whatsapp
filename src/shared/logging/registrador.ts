@@ -12,6 +12,7 @@ export function crearRegistrador(nivel = 'info'): Logger {
         'req.headers["x-hub-signature-256"]',
         '*.token',
         '*.tokenAcceso',
+        '*.credencial',
         '*.accessToken',
         '*.idWa',
         '*.telefonoVisible',
