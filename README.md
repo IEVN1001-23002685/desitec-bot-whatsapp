@@ -318,9 +318,10 @@ dispara el flujo de captura del módulo `autorespuestas`:
 - Se admiten correcciones explícitas («mi correo es…», «me llamo…», «en realidad
   son 6», «mejor…») sin reiniciar el flujo. Una corrección de un solo
   modelo/producto («en realidad el modelo es…», «mejor el modelo…», «corrige el
-  modelo a…») reemplaza `modelos` y conserva la cantidad actual salvo que el
-  mensaje incluya una cantidad nueva. Si la corrección incluye varios modelos, se
-  agregan a la lista existente y se vuelve a pedir el total. Varios correos
+  modelo a…») reemplaza `modelos` y descarta la cantidad anterior; si el mensaje
+  incluye una cantidad nueva, se usa esa y se continúa con el paso pendiente. Si
+  la corrección incluye varios modelos, se agregan a la lista existente y se
+  vuelve a pedir el total. Varios correos
   distintos en un mensaje se rechazan con `correo_ambiguo`; los rangos, decimales
   y especificaciones técnicas se aclaran con sus claves correspondientes.
 - En cualquier paso, si el mensaje pide atención humana (“persona”, “asesor”,
@@ -342,76 +343,33 @@ dispara el flujo de captura del módulo `autorespuestas`:
   coincide con `+52 1 477 290 5770`. Para pruebas locales con una sola línea usa
   un `idNumeroTelefono` placeholder hasta conectar el webhook real de 360dialog.
 
-## Motor de respuestas con IA Gemini (Fase 5)
+## Motor de respuestas determinista
 
-Con `WHATSAPP_RESPUESTAS_MODO=gemini` y `WHATSAPP_BOT_ACTIVO=true`, el bot usa
-Gemini (`@google/genai`, modelo `gemini-4-argon`) para generar respuestas
-automáticas a mensajes entrantes, canalizadas a través del caso de uso
-`ProcesarMensajeAutorespuestaIA`. El principio rector es **"Gemini propone, el
-backend decide"**: la salida estructurada de Gemini se mapea a
-`InterpretacionMensaje` y pasa por `aplicarInterpretacion` (módulo
-`autorespuestas`), de modo que solo esa función decide los cambios de estado
-(`listo_pipedrive` solo cuando los 5 campos Nombre/Correo/Modelos/Cantidad/Ciudad
-estén presentes; `en_asesor` está permitido comotrigger IA pero nunca se reactiva
-sola).
+El bot de leads **no usa IA ni servicios externos de NLP**. Toda la
+interpretación es local y determinista: normalización de texto, catálogo de
+productos, catálogo geográfico, expresiones regulares y reglas de negocio.
 
-### Flujo de procesamiento
+- La intención del mensaje se clasifica con `clasificarIntencion` (saludo,
+  aclaración, orientación, referencia a una sugerencia previa, negación,
+  corrección, etc.).
+- Los datos se extraen con `interpretarMensaje` (nombre, correo, productos,
+  cantidades, ubicación) y varias claves pueden venir en un mismo mensaje.
+- `aplicarInterpretacion` es la única función que decide el estado del lead
+  (`listo_pipedrive` solo cuando los cinco campos están completos; `en_asesor`
+  nunca se reactiva solo).
+- El guion editable de `guion_flujo_lead` decide el texto final; las variables
+  `{{nombre}}`, `{{correo}}`, `{{productos}}`, `{{cantidad}}`, `{{ciudad}}`,
+  `{{categoria}}` y `{{candidatos}}` se interpolan antes de enviar.
+- Las sugerencias de productos se guardan en `leads.contexto_producto`
+  (`sugerencias`, `rechazados`, `ultimaConsulta`, `ultimaMarca`,
+  `consultasOrientacion`, `fallosProducto`) para que referencias como «el
+  primero», «el segundo», «otro» o «de la misma marca» sobrevivan a reinicios
+  del worker.
+- La puntuación del catálogo es una **heurística interna de relevancia**, no una
+  probabilidad. `confianzaCoincidencia` la traduce a `alta`/`media`/`baja`.
 
-1. **Validación de número** (`numeroPermitido`): solo números en el allowlist.
-2. **Texto nulo/vacío** → flujo determinista (fallback).
-3. **Solicitud de humano** (`esSolicitudDeHumano`): detector determinista primero;
-   si no detecta, se intenta IA, pero cualquier error o salida no conforme también
-   cae al fallback.
-4. **Lead en `en_asesor`**: se omite la respuesta IA.
-5. **Turno obsoleto**: si el mensaje entrante tiene `idMensajeMeta` y la conversación
-   ya fue atendida con otro `idMensajeMeta`, se omite.
-6. **Límite diario** (`GEMINI_MAX_SOLICITUDES_DIA`): si se alcanzó, se usa el
-   flujo determinista.
-7. **Llamada a Gemini** (`ProveedorGemini`): con reintentos y backoff
-   `500ms*(intento-1)`. Clasificación de errores:
-   - `autenticacion`, `red`: no reintentables.
-   - `cuota`, `indisponible`, `timeout`: reintentables con backoff.
-   - `sin_repuesta`: cuando la IA no devuelve texto ni `status===completed`.
-   - `salida_invalida`: validación ZOD del esquema JSON.
-   - Fenced ``` stripping antes de `JSON.parse`.
-8. **Validación de salida** (`respuestaPropuestaValida`): longitud, sin ```, no
-   empieza con `{`, palabras prohibidas. Si falla → texto de guion por
-   `claveRespuesta`.
-9. **Aplicar interpretación** (`aplicarInterpretacion`): actualiza el lead con
-   los datos detectados (`nombre`, `correo`, `productos`, `cantidad`, `ciudad`).
-10. **Enviar respuesta** por `EnviarMensajeSaliente` (misma ventana de atención
-    y `DRY_RUN`).
-
-### Límites y controles
-
-- `GEMINI_MAX_LONGITUD_RESPUESTA` (800): longitud máxima de la respuesta propuesta.
-- `GEMINI_THINKING_LEVEL` (minimal|low|medium|high): nivel de "thinking" del modelo.
-- `GEMINI_HISTORIAL_LIMITE` (10): máximo de mensajes de historial a enviar a Gemini.
-- `GEMINI_INTENTOS` (2): número de intentos de retry.
-- `WHATSAPP_BOT_NUMEROS_PERMITIDOS`: lista de números que pueden activar el bot IA.
-- `WHATSAPP_ACCOUNTS` con `proveedor: meta`: en modo gemini, las cuentas Meta
-  continúan usando el flujo determinista dentro del webhook HTTP (se registra
-  warning al arranque).
-
-### Variable de entorno nueva
-
-Añadida a `.env.example`:
-
-- `WHATSAPP_RESPUESTAS_MODO` (reglas|gemini) — activa el modo IA.
-- `GEMINI_API_KEY` — clave de la API de Gemini (obligatoria si modo=gemini).
-- `GEMINI_MODEL` (default: `gemini-4-argon`) — modelo a usar.
-- `GEMINI_TIMEOUT_MS` (default: `10000`) — timeout por llamada.
-- `GEMINI_THINKING_LEVEL` (minimal|low|medium|high, default: `low`) — nivel de razonamiento.
-- `GEMINI_HISTORIAL_LIMITE` (default: `10`) — mensajes de historial máximo.
-- `GEMINI_MAX_OUTPUT_TOKENS` (default: `4096`) — tokens máximo de salida.
-- `GEMINI_INTENTOS` (default: `2`) — reintentos ante error.
-- `GEMINI_MAX_SOLICITUDES_DIA` (default: `0` = ilimitado) — límite diario de llamadas.
-- `GEMINI_MAX_LONGITUD_RESPUESTA` (default: `800`) — caracteres máximo de respuesta.
-
-### Nota sobre `WHATSAPP_DRY_RUN`
-
-`WHATSAPP_DRY_RUN=true` no detiene el gasto de la API de Gemini (las llamadas
-a la IA se cuentan independientemente). Documentar esto en logs o CI.
+No hay llamadas a Gemini/OpenAI ni variables `GEMINI_*`; si aparecen en un
+entorno antiguo se ignoran.
 
 ## Docker (PostgreSQL y la pila completa)
 
