@@ -48,8 +48,7 @@ export function indiceFrase(textoNormalizado: string, frase: string): number {
 
     const antes = indice === 0 ? ' ' : textoNormalizado[indice - 1]
     const despuesIndice = indice + frase.length
-    const despues =
-      despuesIndice >= textoNormalizado.length ? ' ' : textoNormalizado[despuesIndice]
+    const despues = despuesIndice >= textoNormalizado.length ? ' ' : textoNormalizado[despuesIndice]
 
     if (antes === ' ' && despues === ' ') {
       return indice
