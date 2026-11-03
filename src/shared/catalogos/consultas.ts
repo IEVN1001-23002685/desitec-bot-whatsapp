@@ -5,7 +5,11 @@ import {
 } from './geografia/index.js'
 import type { ResultadoUbicacion, UbicacionValidada } from './geografia/index.js'
 import { buscarProductos, cargarCatalogoProductos, esCategoriaProducto } from './productos/index.js'
-import type { ProductoCatalogo, ResultadoBusquedaProductos } from './productos/index.js'
+import type {
+  OpcionesBusquedaProductos,
+  ProductoCatalogo,
+  ResultadoBusquedaProductos,
+} from './productos/index.js'
 
 function resolutorLocal(): ReturnType<typeof obtenerResolutorUbicaciones> {
   return obtenerResolutorUbicaciones(cargarCatalogoGeografia(), cargarCatalogoExtranjero())
@@ -26,8 +30,11 @@ export function formatearUbicacionesLocales(
   return resolutorLocal().formatearCandidatos(candidatos, limite)
 }
 
-export function buscarProductosLocal(texto: string): ResultadoBusquedaProductos {
-  return buscarProductos(cargarCatalogoProductos(), texto)
+export function buscarProductosLocal(
+  texto: string,
+  opciones: OpcionesBusquedaProductos = {},
+): ResultadoBusquedaProductos {
+  return buscarProductos(cargarCatalogoProductos(), texto, opciones)
 }
 
 export function productosCatalogoLocal(): readonly ProductoCatalogo[] {
