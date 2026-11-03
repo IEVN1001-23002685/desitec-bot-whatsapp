@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { cuentasWhatsApp } from './cuentas-whatsapp.js'
 import { plantillasWhatsApp } from './plantillas-whatsapp.js'
 
@@ -16,6 +16,7 @@ export const reglasSeguimiento = pgTable(
       onDelete: 'set null',
     }),
     cuerpo: text('cuerpo'),
+    parametros: jsonb('parametros').$type<string[]>().notNull().default([]),
     activa: boolean('activa').notNull().default(true),
     creadoEn: timestamp('creado_en', { withTimezone: true }).notNull().defaultNow(),
     actualizadoEn: timestamp('actualizado_en', { withTimezone: true }).notNull().defaultNow(),
