@@ -8,6 +8,14 @@ import type {
   UbicacionValidada,
 } from '../../../../shared/catalogos/geografia/index.js'
 import type { CoincidenciaProducto } from '../../../../shared/catalogos/productos/index.js'
+import {
+  esConsultaAmpliaProductos,
+  esConsultaEspecificaProductos,
+  esConsultaGenericaProductos,
+  confianzaCoincidencia,
+  extraerModelos,
+  normalizarMarcasTexto,
+} from '../../../../shared/catalogos/productos/index.js'
 import type { ProductoLead, UbicacionLead } from '../types/datos-lead.js'
 import type { PasoLead } from '../types/paso-lead.js'
 import { esSolicitudDeHumano } from './detectar-solicitud-humano.js'
@@ -35,20 +43,29 @@ export type OperacionProductos = 'agregar' | 'reemplazar'
 
 export type ResultadoProductosMensaje =
   | {
-    tipo: 'confirmado'
-    productos: readonly ProductoLead[]
-    operacion: OperacionProductos
-  }
+      tipo: 'confirmado'
+      productos: readonly ProductoLead[]
+      operacion: OperacionProductos
+    }
   | {
-    tipo: 'suficiente'
-    solicitud: string
-    operacion: OperacionProductos
-  }
+      tipo: 'suficiente'
+      solicitud: string
+      consulta: string
+      operacion: OperacionProductos
+    }
   | {
-    tipo: 'ambiguo'
-    candidatos: readonly CoincidenciaProducto[]
-    solicitud: string | null
-  }
+      tipo: 'categoria'
+      categoria: string
+      consulta: string
+      operacion: OperacionProductos
+    }
+  | {
+      tipo: 'ambiguo'
+      candidatos: readonly CoincidenciaProducto[]
+      solicitud: string | null
+      consulta: string
+      especifica: boolean
+    }
   | { tipo: 'ninguno' }
 
 export type OpcionesProductosMensaje = {
@@ -63,7 +80,7 @@ const PATRON_NOMBRE_EXPLICITO =
   /\b(?:me\s+llamo|mi\s+nombre\s+es|soy)\s+([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*){0,4})/iu
 
 const PATRON_CIUDAD_EXPLICITO =
-  /\b(?:mi\s+ciudad\s+es|mi\s+ubicaci[oó]n\s+es|vivo\s+en|vive\s+en|vives\s+en|estoy\s+en|estamos\s+en|trabajo\s+en|radico\s+en|soy\s+de|somos\s+de|ciudad\s+de|municipio\s+de|entrega\s+en|entregar\s+en|env[ií]o\s+a|para|hacia)\s+([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*){0,5})/iu
+  /\b(?:mi\s+ciudad\s+es|mi\s+ubicaci[oó]n\s+es|vivo\s+en|vive\s+en|vives\s+en|estoy\s+en|estamos\s+en|me\s+encuentro\s+en|trabajo\s+en|radico\s+en|soy\s+de|somos\s+de|ciudad\s+de|municipio\s+de|entrega\s+en|entregar\s+en|env[ií]o\s+a|para|hacia)\s+([\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*){0,5})/iu
 
 const PATRON_CTA_PRODUCTO =
   /^\s*(?:hola[,!.\s]+)?quiero\s+informaci[oó]n\s+(?:del?\s+|sobre\s+(?:el\s+)?)(?:producto|productos)\s*:?\s*(?<producto>.*)$/isu
@@ -88,6 +105,26 @@ const PATRON_VERBO_PRODUCTO =
 
 const PATRON_CANTIDAD_APROXIMADA =
   /\b(?:como|alrededor\s+de|aproximadamente|aprox\.?|cerca\s+de|unas?|unos?)\s+\d{1,6}\b|\b\d{1,6}\s*(?:aprox\.?|aproximadamente|m[aá]s\s+o\s+menos)\b/iu
+
+/**
+ * Cláusulas que aportan datos distintos al producto. Se retiran del texto que
+ * se usa para buscar en el catálogo para que "me llamo Pedro" o "me encuentro
+ * en Guadalajara" no contaminen la solicitud.
+ */
+const PATRON_CLAUSULA_NOMBRE =
+  /\b(?:me\s+llamo|mi\s+nombre\s+es|puedes\s+llamarme|puede\s+llamarme|pueden\s+llamarme)\s+[\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*){0,3}/giu
+
+const PATRON_CLAUSULA_UBICACION =
+  /\b(?:mi\s+ciudad\s+es|mi\s+ubicaci[oó]n\s+es|vivo\s+en|vive\s+en|vives\s+en|estoy\s+en|estamos\s+en|me\s+encuentro\s+en|trabajo\s+en|radico\s+en|soy\s+de|somos\s+de|ciudad\s+de|municipio\s+de|entrega\s+en|entregar\s+en|env[ií]o\s+a|ubicad[oa]\s+en)\s+(?:la\s+)?(?:ciudad|municipio|localidad|poblaci[oó]n)?\s*(?:de\s+)?[\p{L}][\p{L}'.-]*(?:\s+[\p{L}][\p{L}'.-]*){0,5}/giu
+
+const PATRON_SALUDO_INICIAL =
+  /^(?:(?:hola|buenas|buenos\s+dias|buen\s+dia|buenas\s+tardes|buenas\s+noches|que\s+tal|saludos|hey|mucho\s+gusto|un\s+placer|encantad[oa])(?:[,\s]+|$))+/iu
+
+/**
+ * Solo quita numeros que estan aislados (cantidades). Los digitos pegados a
+ * letras o guiones forman parte de modelos como TY658 o FSP-951.
+ */
+const PATRON_CANTIDAD_NUMERICA = /(?<![\p{L}\p{N}./-])\d{1,12}(?![\p{L}\p{N}./-])/gu
 
 const PALABRAS_RELLENO_SOLICITUD = new Set([
   'a',
@@ -211,7 +248,8 @@ export function extraerUbicacionMensaje(
   const candidatos: string[] = []
   const explicito = bruto.match(PATRON_CIUDAD_EXPLICITO)
   if (explicito?.[1]) {
-    candidatos.push(explicito[1])
+    // Recorta solo el marco conversacional; el resolutor conserva todas sus reglas.
+    candidatos.push(explicito[1].replace(/^(?:la\s+)?ciudad\s+(?:de\s+)?/iu, ''))
   }
   if (opciones.aceptarTextoSimple) {
     candidatos.push(bruto)
@@ -233,8 +271,7 @@ export function extraerUbicacionMensaje(
     vistos.add(limpio.toLowerCase())
 
     const exacto = resolverUbicacionExactaLocal(limpio)
-    const resultado =
-      exacto.tipo === 'no_reconocida' ? resolverUbicacionLocal(limpio) : exacto
+    const resultado = exacto.tipo === 'no_reconocida' ? resolverUbicacionLocal(limpio) : exacto
     const convertido = convertirResultadoUbicacion(resultado)
     if (convertido.tipo !== 'ninguna') {
       resultados.push(convertido)
@@ -260,9 +297,7 @@ export function extraerUbicacionMensaje(
   if (ambiguas.length > 0) {
     return {
       tipo: 'ambigua',
-      candidatos: deduplicarUbicacionesLead(
-        ambiguas.flatMap((resultado) => resultado.candidatos),
-      ),
+      candidatos: deduplicarUbicacionesLead(ambiguas.flatMap((resultado) => resultado.candidatos)),
     }
   }
   return { tipo: 'ninguna' }
@@ -274,6 +309,24 @@ export function extraerCiudad(texto: string, aceptarTextoSimple: boolean): strin
     return resultado.ubicacion.nombreMostrado
   }
   return null
+}
+
+/**
+ * Reconoce un mensaje corto que podria ser una ubicacion por si mismo
+ * ("Puebla", "chichimequillas"). No sustituye al validador: solo decide si vale
+ * la pena enviarle el texto completo en cualquier paso de la conversacion.
+ */
+export function parecerUbicacionAislada(texto: string): boolean {
+  const limpio = limpiarCandidatoUbicacion(texto)
+  if (limpio.length < 3 || /\d/u.test(limpio)) {
+    return false
+  }
+  const palabras = limpio.split(/\s+/u).filter((palabra) => palabra.length > 0)
+  if (palabras.length > 6) {
+    return false
+  }
+  const resultado = resolverUbicacionExactaLocal(limpio)
+  return resultado.tipo !== 'no_reconocida'
 }
 
 export function aUbicacionLead(ubicacion: UbicacionValidada): UbicacionLead {
@@ -297,9 +350,7 @@ export function esUbicacionExtranjera(ubicacion: UbicacionLead | null): boolean 
   return ubicacion !== null && ubicacion.pais !== 'México'
 }
 
-function convertirResultadoUbicacion(
-  resultado: ResultadoUbicacion,
-): ResultadoUbicacionMensaje {
+function convertirResultadoUbicacion(resultado: ResultadoUbicacion): ResultadoUbicacionMensaje {
   switch (resultado.tipo) {
     case 'mexicana': {
       const ubicacion = aUbicacionLead(resultado.ubicacion)
@@ -310,12 +361,8 @@ function convertirResultadoUbicacion(
     case 'extranjera':
       return { tipo: 'extranjera', ubicacion: aUbicacionLead(resultado.ubicacion) }
     case 'ambigua': {
-      const candidatos = deduplicarUbicacionesLead(
-        resultado.candidatos.map(aUbicacionLead),
-      )
-      return candidatos.length > 0
-        ? { tipo: 'ambigua', candidatos }
-        : { tipo: 'ninguna' }
+      const candidatos = deduplicarUbicacionesLead(resultado.candidatos.map(aUbicacionLead))
+      return candidatos.length > 0 ? { tipo: 'ambigua', candidatos } : { tipo: 'ninguna' }
     }
     case 'no_reconocida':
       return { tipo: 'ninguna' }
@@ -327,13 +374,12 @@ function limpiarCandidatoUbicacion(texto: string): string {
     .replace(PATRON_CORTE_UBICACION, ' ')
     .replace(/^[\s,;:.!?-]+|[\s,;:.!?-]+$/gu, '')
     .replace(/^(?:en|de|para|hacia|a)\s+/iu, '')
+    .replace(/^(?:la\s+)?ciudad\s+(?:de\s+)?/iu, '')
     .replace(/\s+/gu, ' ')
     .trim()
 }
 
-function deduplicarUbicacionesLead(
-  ubicaciones: readonly UbicacionLead[],
-): UbicacionLead[] {
+function deduplicarUbicacionesLead(ubicaciones: readonly UbicacionLead[]): UbicacionLead[] {
   const vistos = new Set<string>()
   const resultado: UbicacionLead[] = []
   for (const ubicacion of ubicaciones) {
@@ -367,7 +413,6 @@ export function formatearCandidatosProductos(
   return nombres.join('; ')
 }
 
-
 export function extraerProductosMensaje(
   texto: string,
   opciones: OpcionesProductosMensaje,
@@ -397,10 +442,39 @@ export function extraerProductosMensaje(
     }
   }
 
-  const busqueda = buscarProductosLocal(limpiarParaBusqueda(base, opciones))
+  const limpioBusqueda = limpiarParaBusqueda(base, opciones)
   const solicitud = limpiarSolicitudProducto(base, opciones)
+  const modelos = extraerModelos(base)
+  const especifica = esConsultaEspecificaProductos(limpioBusqueda)
+
+  // "equipo contra incendio" o "sistema de alarma" describen una necesidad,
+  // no un producto cotizable: se conserva como categoria general y se pide
+  // precision antes de avanzar a cantidad.
+  if (esConsultaAmpliaProductos(limpioBusqueda)) {
+    const categoria = solicitud ?? limpioBusqueda
+    if (categoria.length > 0) {
+      return { tipo: 'categoria', categoria, consulta: categoria, operacion }
+    }
+  }
+
+  const busqueda = buscarProductosLocal(limpioBusqueda)
+  const generica = esConsultaGenericaProductos(limpioBusqueda)
+  // Una solicitud concreta (marca + tipo, modelo no encontrado o al menos dos
+  // palabras significativas) se conserva como solicitud no verificada. Es
+  // preferible pedir la cantidad que dejar al cliente atrapado exigiendo un SKU
+  // que quiza no conoce. Nunca se inventa una coincidencia del catalogo.
   if (solicitud !== null && esSolicitudProductoSuficiente(solicitud)) {
-    return { tipo: 'suficiente', solicitud, operacion }
+    return { tipo: 'suficiente', solicitud, consulta: limpioBusqueda, operacion }
+  }
+
+  if (busqueda.tipo === 'ambiguo' && (modelos.length === 0 || generica)) {
+    return {
+      tipo: 'ambiguo',
+      candidatos: busqueda.candidatos,
+      solicitud,
+      consulta: limpioBusqueda,
+      especifica,
+    }
   }
 
   if (busqueda.tipo === 'ambiguo') {
@@ -408,6 +482,8 @@ export function extraerProductosMensaje(
       tipo: 'ambiguo',
       candidatos: busqueda.candidatos,
       solicitud,
+      consulta: limpioBusqueda,
+      especifica,
     }
   }
 
@@ -496,6 +572,7 @@ function buscarProductosConfirmados(
     const resultado = buscarProductosLocal(candidato)
     if (resultado.tipo === 'confirmado') {
       for (const coincidencia of resultado.coincidencias) {
+        if (confianzaCoincidencia(coincidencia) !== 'alta') continue
         agregarProducto(encontrados, {
           nombre: coincidencia.producto.nombre,
           url: coincidencia.producto.url,
@@ -509,6 +586,7 @@ function buscarProductosConfirmados(
     const resultado = buscarProductosLocal(segmento)
     if (resultado.tipo === 'confirmado') {
       for (const coincidencia of resultado.coincidencias) {
+        if (confianzaCoincidencia(coincidencia) !== 'alta') continue
         agregarProducto(encontrados, {
           nombre: coincidencia.producto.nombre,
           url: coincidencia.producto.url,
@@ -535,19 +613,15 @@ function agregarProducto(acumulados: Map<string, ProductoLead>, producto: Produc
   }
 }
 
-function asignarCantidades(
-  productos: readonly ProductoLead[],
-  texto: string,
-): ProductoLead[] {
+function asignarCantidades(productos: readonly ProductoLead[], texto: string): ProductoLead[] {
   const cantidades = buscarCantidades(texto)
     .filter(
-      (coincidencia) =>
-        !coincidencia.tecnica && !coincidencia.referencia && coincidencia.valor > 0,
+      (coincidencia) => !coincidencia.tecnica && !coincidencia.referencia && coincidencia.valor > 0,
     )
-    .map((coincidencia) => coincidencia.valor)
+    .map((coincidencia) => ({ valor: coincidencia.valor, indice: coincidencia.indice }))
 
   if (productos.length === 1) {
-    const cantidad = cantidades.length === 1 ? (cantidades[0] ?? null) : null
+    const cantidad = cantidades.length === 1 ? (cantidades[0]?.valor ?? null) : null
     return [{ ...productos[0]!, cantidad }]
   }
 
@@ -555,26 +629,92 @@ function asignarCantidades(
     return productos.map((producto) => ({ ...producto, cantidad: null }))
   }
 
+  // El orden en que el catalogo devuelve los productos no siempre coincide con
+  // el orden en que el cliente los escribio. Se empareja cada cantidad con el
+  // producto mas cercano del mensaje para no intercambiar piezas entre modelos.
+  const porPosicion = emparejarCantidadesPorPosicion(productos, cantidades, texto)
+  if (porPosicion !== null) {
+    return porPosicion
+  }
+
   return productos.map((producto, indice) => ({
     ...producto,
-    cantidad: cantidades[indice] ?? null,
+    cantidad: cantidades[indice]?.valor ?? null,
   }))
 }
 
-function limpiarParaBusqueda(
+function emparejarCantidadesPorPosicion(
+  productos: readonly ProductoLead[],
+  cantidades: readonly { valor: number; indice: number }[],
   texto: string,
-  opciones: OpcionesProductosMensaje,
-): string {
+): ProductoLead[] | null {
+  const posiciones = productos.map((producto) => posicionProducto(producto, texto))
+  if (posiciones.some((posicion) => posicion === null)) {
+    return null
+  }
+  const indices = posiciones as number[]
+  const disponibles = new Set(indices.map((_, indice) => indice))
+  const asignadas = new Map<number, number>()
+
+  for (const cantidad of [...cantidades].sort((a, b) => a.indice - b.indice)) {
+    let mejor: number | null = null
+    let mejorDistancia = Number.POSITIVE_INFINITY
+    for (const indice of disponibles) {
+      const posicion = indices[indice]
+      if (posicion === undefined) {
+        continue
+      }
+      const distancia = Math.abs(posicion - cantidad.indice)
+      const prefiereSiguiente =
+        mejor !== null &&
+        distancia === mejorDistancia &&
+        posicion >= cantidad.indice &&
+        (indices[mejor] ?? 0) < cantidad.indice
+      if (distancia < mejorDistancia || prefiereSiguiente) {
+        mejor = indice
+        mejorDistancia = distancia
+      }
+    }
+    if (mejor === null) {
+      return null
+    }
+    disponibles.delete(mejor)
+    asignadas.set(mejor, cantidad.valor)
+  }
+
+  return productos.map((producto, indice) => ({
+    ...producto,
+    cantidad: asignadas.get(indice) ?? null,
+  }))
+}
+
+/**
+ * Posicion del primer modelo del producto dentro del mensaje original. Se
+ * buscan los caracteres del modelo permitiendo separadores (`FSP-951`,
+ * `FSP 951`), sin aceptar que el modelo sea parte de otro mas largo.
+ */
+function posicionProducto(producto: ProductoLead, texto: string): number | null {
+  for (const modelo of extraerModelos(producto.nombre)) {
+    const cuerpo = [...modelo].map((caracter) => escaparRegex(caracter)).join('[\\s._/-]*')
+    const coincidencia = new RegExp(`(?<![a-z0-9])${cuerpo}(?![a-z0-9])`, 'iu').exec(texto)
+    if (coincidencia?.index !== undefined) {
+      return coincidencia.index
+    }
+  }
+  return null
+}
+
+function limpiarParaBusqueda(texto: string, opciones: OpcionesProductosMensaje): string {
   let valor = ocultarCorreos(texto)
     .replace(/\bhttps?:\/\/\S+/giu, ' ')
     .replace(PATRON_PREFIJO_CORRECCION, ' ')
     .replace(PATRON_PREFIJO_AGREGAR, ' ')
+    .replace(PATRON_SALUDO_INICIAL, ' ')
+    .replace(PATRON_CLAUSULA_NOMBRE, ' ')
+    .replace(PATRON_CLAUSULA_UBICACION, ' ')
+    .replace(/^[\s,;:.!?-]+/u, ' ')
     .replace(
-      /^(?:hola|buenas|buenos\s+dias|buenas\s+tardes|buenas\s+noches)[,:\s]+/iu,
-      ' ',
-    )
-    .replace(
-      /^(?:(?:necesito|quiero|busco|cotizar|solicito|requiero|ocupo|deseo|me\s+interesa(?:n)?)\b\s*)+/iu,
+      /^(?:(?:necesito|quiero|quisiera|busco|cotizar|solicito|requiero|ocupo|deseo|me\s+gustaria|me\s+interesa(?:n)?|vengo\s+a)\b\s*)+/iu,
       ' ',
     )
     .replace(
@@ -593,11 +733,9 @@ function limpiarSolicitudProducto(
   let valor = limpiarParaBusqueda(texto, opciones)
   valor = valor
     .replace(PATRON_CANTIDAD_APROXIMADA, ' ')
-    .replace(
-      /\b(?:unas?|unos?|como|alrededor\s+de|aproximadamente|aprox\.?|cerca\s+de)\s+/giu,
-      ' ',
-    )
-    .replace(/\b\d{1,6}\b/gu, ' ')
+    .replace(/\b(?:unas?|unos?|como|alrededor\s+de|aproximadamente|aprox\.?|cerca\s+de)\s+/giu, ' ')
+    .replace(PATRON_CANTIDAD_NUMERICA, ' ')
+    .replace(/^(?:piezas?|pzas?|unidades?|juegos?|kits?)\s+(?:de\s+)?/iu, ' ')
     .replace(/\s+/gu, ' ')
     .trim()
 
@@ -624,13 +762,10 @@ function limpiarSolicitudProducto(
     return null
   }
 
-  return valor
+  return normalizarMarcasTexto(valor)
 }
 
-function quitarDatosConocidos(
-  texto: string,
-  opciones: OpcionesProductosMensaje,
-): string {
+function quitarDatosConocidos(texto: string, opciones: OpcionesProductosMensaje): string {
   let valor = texto
   const datos = [
     opciones.nombre,
@@ -647,9 +782,10 @@ function quitarDatosConocidos(
     }
   }
 
-  return valor
-    .replace(
-      /\b(?:mi\s+ciudad\s+es|mi\s+ubicaci[oó]n\s+es|vivo\s+en|vive\s+en|vives\s+en|estoy\s+en|estamos\s+en|trabajo\s+en|radico\s+en|soy\s+de|somos\s+de|ciudad\s+de|municipio\s+de|entrega\s+en|entregar\s+en|env[ií]o\s+a)\b/giu, ' ')
+  return valor.replace(
+    /\b(?:mi\s+ciudad\s+es|mi\s+ubicaci[oó]n\s+es|vivo\s+en|vive\s+en|vives\s+en|estoy\s+en|estamos\s+en|me\s+encuentro\s+en|trabajo\s+en|radico\s+en|soy\s+de|somos\s+de|ciudad\s+de|municipio\s+de|entrega\s+en|entregar\s+en|env[ií]o\s+a)\b/giu,
+    ' ',
+  )
 }
 
 function escaparRegex(texto: string): string {
