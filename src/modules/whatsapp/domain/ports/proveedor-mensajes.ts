@@ -1,7 +1,10 @@
+import type { ProveedorMensajeria } from '../types/proveedor-mensajeria.js'
+
 export type EntradaEnviarMensajeTexto = {
   tipo: 'text'
+  proveedor: ProveedorMensajeria
   idNumeroTelefono: string
-  tokenAcceso: string
+  credencial: string
   idWa: string
   cuerpo: string
 }
@@ -13,8 +16,9 @@ export type ParametroPlantilla = {
 
 export type EntradaEnviarMensajePlantilla = {
   tipo: 'template'
+  proveedor: ProveedorMensajeria
   idNumeroTelefono: string
-  tokenAcceso: string
+  credencial: string
   idWa: string
   nombrePlantilla: string
   idiomaPlantilla: string
