@@ -74,6 +74,15 @@ Ver `.env.example`:
 - `WHATSAPP_BOT_NUMEROS_PERMITIDOS` — lista separada por comas de números que
   pueden activar el bot. Vacía = cualquier remitente. La comparación ignora `+`,
   espacios y la lada mexicana `52`/`521` (ver «Bot de captura de leads»).
+- `IA_ACTIVA` — `false` por defecto. Activa la interpretación asistida con Gemini;
+  **no** activa el bot ni cambia `WHATSAPP_BOT_ACTIVO`.
+- `IA_PROVEEDOR` — único valor admitido: `gemini`.
+- `IA_MODELO` — modelo de Gemini (por defecto `gemini-3.5-flash-lite`).
+- `GEMINI_API_KEY` — credencial de Google AI Studio; solo se exige con
+  `IA_ACTIVA=true`. Si falta, se registra un aviso y el bot sigue determinista.
+- `IA_TIMEOUT_MS` — presupuesto total de la consulta (por defecto `4000` ms).
+- `IA_MODO` — `asistido` (aplica sugerencias validadas) o `sombra` (solo compara).
+- `IA_MAX_TOKENS_SALIDA` — límite de tokens de salida (por defecto `512`).
 - `API_INTERNAL_KEY` — clave compartida para `POST /api/mensajes` y
   `POST /api/seguimientos`. Si está vacía, los endpoints no se registran (404).
 - `WHATSAPP_ACCOUNTS` — JSON con las cuentas a sembrar (`codigo`, `nombreComercial`,
@@ -342,12 +351,18 @@ dispara el flujo de captura del módulo `autorespuestas`:
   normalizan (sin `+`/espacios y sin lada `52`/`521`), así que `4772905770`
   coincide con `+52 1 477 290 5770`. Para pruebas locales con una sola línea usa
   un `idNumeroTelefono` placeholder hasta conectar el webhook real de 360dialog.
+- Con `IA_ACTIVA=true` y `WHATSAPP_BOT_ACTIVO=true`, los mensajes que el motor
+  determinista no logra interpretar pueden recibir una segunda lectura de Gemini.
+  La IA solo propone; el lead, el estado y la respuesta se calculan y persisten
+  una única vez con las reglas existentes (ver «Motor de respuestas determinista»).
 
 ## Motor de respuestas determinista
 
-El bot de leads **no usa IA ni servicios externos de NLP**. Toda la
-interpretación es local y determinista: normalización de texto, catálogo de
-productos, catálogo geográfico, expresiones regulares y reglas de negocio.
+El bot de leads usa reglas locales y deterministas: normalización de texto,
+catálogo de productos, catálogo geográfico, expresiones regulares y reglas de
+negocio. Opcionalmente, Gemini puede interpretar mensajes ambiguos y proponer
+datos, pero **nunca** sustituye estas reglas ni decide el estado del lead. Ver
+[`docs/integracion-gemini.md`](docs/integracion-gemini.md).
 
 - La intención del mensaje se clasifica con `clasificarIntencion` (saludo,
   aclaración, orientación, referencia a una sugerencia previa, negación,
@@ -367,9 +382,14 @@ productos, catálogo geográfico, expresiones regulares y reglas de negocio.
   del worker.
 - La puntuación del catálogo es una **heurística interna de relevancia**, no una
   probabilidad. `confianzaCoincidencia` la traduce a `alta`/`media`/`baja`.
+- Con `IA_ACTIVA=true`, `InterpretarMensajeLead` consulta Gemini solo cuando el
+  determinista deja el mensaje ambiguo. Las sugerencias vuelven a validarse con las
+  mismas reglas; si no aportan una mejora segura (o intentan cambiar el estado), se
+  descartan. La IA no persiste ni envía mensajes: la escritura y la respuesta
+  siguen siendo únicas y salen del guion.
 
-No hay llamadas a Gemini/OpenAI ni variables `GEMINI_*`; si aparecen en un
-entorno antiguo se ignoran.
+No hay llamadas a otros proveedores ni alias de variables. Si un entorno antiguo
+conserva variables `GEMINI_*` distintas de las documentadas, se ignoran.
 
 ## Docker (PostgreSQL y la pila completa)
 
@@ -441,16 +461,17 @@ src/
     conversations/   BuscarOCrearConversacion, mensajes y transaccion entrante/saliente
     pipedrive/       (pendiente, fase posterior)
     followups/       reglas, plantillas y seguimientos programados + casos de uso
+    autorespuestas/  captura de leads, guion, reglas deterministas e IA opcional
 tests/               Vitest: unitarias (fakes + fastify.inject) e integracion (tests/integracion/)
-docs/                arquitectura y reglas de negocio
+docs/                arquitectura, reglas de negocio e integracion con Gemini
 scripts/             utilidades manuales (prueba-envio.ps1)
 drizzle/             migraciones (generadas con npm run db:generate)
 Dockerfile + compose.yaml   imagen de la app y pila local (db/app/worker)
 .github/workflows/ci.yml    pipeline CI
 ```
 
-Ver `docs/architecture.md`, `docs/business-rules.md` y `docs/360dialog-setup.md`
-para detalles.
+Ver `docs/architecture.md`, `docs/business-rules.md`, `docs/360dialog-setup.md` y
+`docs/integracion-gemini.md` para detalles.
 
 ## Pendiente
 

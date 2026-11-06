@@ -22,14 +22,14 @@ infrastructure (repositorios Drizzle, HMAC, transacciones)
 
 ## Módulos
 
-| Módulo                  | Responsabilidad                                                                                            |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `whatsapp`              | Verificación, resolución de cuenta, recepción y normalización de eventos, HMAC, proveedores de mensajería. |
-| `contacts`              | Entidad Contacto y su repositorio.                                                                         |
-| `conversations`         | Entidades Conversación/Mensaje y sus repositorios.                                                         |
-| `pipedrive` (pendiente) | Integración con Pipedrive (fase posterior).                                                                |
-| `followups`             | Plantillas, reglas y seguimientos programados; programación y procesamiento.                               |
-| `autorespuestas`        | Flujo de captura de leads: guion editable, máquina de pasos y persistencia.                                |
+| Módulo                  | Responsabilidad                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `whatsapp`              | Verificación, resolución de cuenta, recepción y normalización de eventos, HMAC, proveedores de mensajería.    |
+| `contacts`              | Entidad Contacto y su repositorio.                                                                            |
+| `conversations`         | Entidades Conversación/Mensaje y sus repositorios.                                                            |
+| `pipedrive` (pendiente) | Integración con Pipedrive (fase posterior).                                                                   |
+| `followups`             | Plantillas, reglas y seguimientos programados; programación y procesamiento.                                  |
+| `autorespuestas`        | Flujo de captura de leads: guion editable, máquina de pasos, persistencia e interpretación asistida opcional. |
 
 ## Selección de proveedor de mensajería
 
@@ -69,7 +69,8 @@ declarado usan `PROVEEDOR_MENSAJERIA_DEFECTO` (por defecto `360dialog`).
 9. Si el mensaje se insertó, `WHATSAPP_BOT_ACTIVO` está activo y el remitente
    pasa el filtro opcional `WHATSAPP_BOT_NUMEROS_PERMITIDOS`,
    `ProcesarMensajeAutorespuesta` (puerto `whatsapp/application/ports/procesador-autorespuesta`)
-   construye un `ContextoMensajeLead` y llama a `procesarMensajeLead`, que
+   construye un `ContextoMensajeLead` y llama a `procesarMensajeLead` (o a
+   `InterpretarMensajeLead` cuando la IA opcional está activa), que
    interpreta y aplica el mensaje: crea o continúa el `lead` de la conversación,
    extrae datos del primer mensaje, CTA del sitio y correcciones explícitas,
    guarda el campo capturado y responde con el texto del guion vía
@@ -118,6 +119,23 @@ El worker drena estos eventos en cada ciclo con `ProcesarEventosWebhookPendiente
 `RecibirEventoWhatsApp`): cuenta desconocida o carga no reconocible → `ignorado`;
 éxito → `procesado`; error → `fallido` (se reintenta en el siguiente ciclo).
 
+## Interpretación asistida opcional (Gemini)
+
+`InterpretarMensajeLead` ejecuta primero el intérprete determinista. Solo si el
+mensaje queda ambiguo (`nombre_invalido`, `correo_invalido`, `correo_ambiguo`,
+`cantidad_invalida`, `producto_invalido`, `producto_referencia` o una corrección
+sin cambios) consulta el puerto `InterpreteConversacionalIA`. El adaptador
+`ProveedorGeminiInterpretacion` usa `@google/genai`, aplica timeout, un único
+reintento para `5xx`/red y un cortacircuitos en memoria.
+
+La respuesta se valida con Zod y se convierte al contrato
+`SugerenciasInterpretacion`; después se vuelve a ejecutar el motor determinista,
+que decide qué campos acepta. La IA nunca persiste ni envía: si el resultado
+asistido cambia el estado, pierde datos ya capturados, intenta completar el lead
+o no aporta mejoras, se conserva el resultado determinista. La composición vive en
+`servidor.ts`, `trabajador.ts` y `simulador.ts`; el detalle operativo está en
+`docs/integracion-gemini.md`.
+
 ## Casos de uso
 
 - `VerificarWebhookWhatsApp` — reto GET con comparación segura.
@@ -133,6 +151,7 @@ El worker drena estos eventos en cada ciclo con `ProcesarEventosWebhookPendiente
 - `EnviarSeguimientoProgramado` — reverifica regla/estado comercial y envía por plantilla o texto.
 - `ProcesarSeguimientosPendientes` — orquesta un lote de seguimientos vencidos.
 - `ProcesarMensajeAutorespuesta` — captura del lead: crea o continúa el flujo, guarda el paso y responde.
+- `InterpretarMensajeLead` — orquesta determinista + IA opcional y aplica las salvaguardas de estado/regresión.
 
 ## Flujo del worker (src/trabajador.ts)
 
