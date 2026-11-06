@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { crearApp } from './app.js'
-import { cargarVariablesEntorno } from './shared/config/variables-entorno.js'
+import { cargarVariablesEntorno, configuracionIA } from './shared/config/variables-entorno.js'
 import { crearBaseDeDatos } from './shared/db/cliente-bd.js'
 import { crearRegistrador } from './shared/logging/registrador.js'
 import { VerificarWebhookWhatsApp } from './modules/whatsapp/application/use-cases/verificar-webhook-whatsapp.js'
@@ -11,6 +11,8 @@ import { RecibirEventoWhatsApp } from './modules/whatsapp/application/use-cases/
 import { RecibirEvento360Dialog } from './modules/whatsapp/application/use-cases/recibir-evento-360dialog.js'
 import { RegistrarMensajeSalienteHumano } from './modules/whatsapp/application/use-cases/registrar-mensaje-saliente-humano.js'
 import { ProcesarMensajeAutorespuesta } from './modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
+import { InterpretarMensajeLead } from './modules/autorespuestas/application/use-cases/interpretar-mensaje-lead.js'
+import { crearInterpreteIA } from './modules/autorespuestas/infrastructure/ia/crear-interprete-ia.js'
 import { RepositorioDrizzleGuionLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-guion-lead.js'
 import { RepositorioDrizzleLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-lead.js'
 import { ProgramarSeguimientos } from './modules/followups/application/use-cases/programar-seguimientos.js'
@@ -74,6 +76,12 @@ async function principal(): Promise<void> {
     ? pausadorSeguimientos
     : undefined
 
+  const configuracionIa = configuracionIA(entorno)
+  const interpreteIA = crearInterpreteIA({ configuracion: configuracionIa, registrador })
+  const interpretarLead = interpreteIA
+    ? new InterpretarMensajeLead(interpreteIA, configuracionIa.modo, registrador)
+    : undefined
+
   const procesadorAutorespuesta = entorno.WHATSAPP_BOT_ACTIVO
     ? new ProcesarMensajeAutorespuesta(
         new RepositorioDrizzleLead(baseDeDatos),
@@ -82,6 +90,7 @@ async function principal(): Promise<void> {
         entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
         pausadorSeguimientos,
         registrador,
+        interpretarLead,
       )
     : undefined
 
@@ -141,6 +150,16 @@ async function principal(): Promise<void> {
   })
 
   await aplicacion.listen({ port: entorno.PORT, host: '0.0.0.0' })
+  registrador.info(
+    {
+      puerto: entorno.PORT,
+      dryRun: entorno.WHATSAPP_DRY_RUN,
+      botActivo: entorno.WHATSAPP_BOT_ACTIVO,
+      modoRespuestas: interpretarLead ? configuracionIa.modo : 'reglas',
+      modeloIA: interpretarLead ? configuracionIa.modelo : null,
+    },
+    'servidor iniciado',
+  )
 }
 
 principal().catch((error) => {
