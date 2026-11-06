@@ -4,7 +4,7 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Pool } from 'pg'
 import { crearApp } from './app.js'
-import { cargarVariablesEntorno } from './shared/config/variables-entorno.js'
+import { cargarVariablesEntorno, configuracionIA } from './shared/config/variables-entorno.js'
 import { crearBaseDeDatos } from './shared/db/cliente-bd.js'
 import { crearRegistrador } from './shared/logging/registrador.js'
 import { esperarBaseDeDatos } from './shared/db/esperar-bd.js'
@@ -16,6 +16,8 @@ import { EnviarMensajeSaliente } from './modules/whatsapp/application/use-cases/
 import { RecibirEventoWhatsApp } from './modules/whatsapp/application/use-cases/recibir-evento-whatsapp.js'
 import { RegistrarMensajeSalienteHumano } from './modules/whatsapp/application/use-cases/registrar-mensaje-saliente-humano.js'
 import { ProcesarMensajeAutorespuesta } from './modules/autorespuestas/application/use-cases/procesar-mensaje-autorespuesta.js'
+import { InterpretarMensajeLead } from './modules/autorespuestas/application/use-cases/interpretar-mensaje-lead.js'
+import { crearInterpreteIA } from './modules/autorespuestas/infrastructure/ia/crear-interprete-ia.js'
 import { RepositorioDrizzleGuionLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-guion-lead.js'
 import { RepositorioDrizzleLead } from './modules/autorespuestas/infrastructure/repositories/repositorio-drizzle-lead.js'
 import { PausadorSeguimientosRespuesta } from './modules/followups/infrastructure/adapters/pausador-seguimientos-respuesta.js'
@@ -157,6 +159,12 @@ async function principal(): Promise<void> {
   const seguimientosProgramados = new RepositorioDrizzleSeguimientoProgramado(baseDeDatos)
   const pausadorSeguimientos = new PausadorSeguimientosRespuesta(seguimientosProgramados)
 
+  const configuracionIa = configuracionIA(entorno)
+  const interpreteIA = crearInterpreteIA({ configuracion: configuracionIa, registrador })
+  const interpretarLead = interpreteIA
+    ? new InterpretarMensajeLead(interpreteIA, configuracionIa.modo, registrador)
+    : undefined
+
   const procesadorAutorespuesta = entorno.WHATSAPP_BOT_ACTIVO
     ? new ProcesarMensajeAutorespuesta(
         new RepositorioDrizzleLead(baseDeDatos),
@@ -165,6 +173,7 @@ async function principal(): Promise<void> {
         entorno.WHATSAPP_BOT_NUMEROS_PERMITIDOS,
         pausadorSeguimientos,
         registrador,
+        interpretarLead,
       )
     : undefined
 
@@ -195,7 +204,15 @@ async function principal(): Promise<void> {
 
   const puerto = entorno.SIMULADOR_PORT ?? 3001
   await aplicacion.listen({ port: puerto, host: '127.0.0.1' })
-  registrador.info({ puerto }, 'simulador de conversaciones iniciado en localhost')
+  registrador.info(
+    {
+      puerto,
+      botActivo: entorno.WHATSAPP_BOT_ACTIVO,
+      modoRespuestas: interpretarLead ? configuracionIa.modo : 'reglas',
+      modeloIA: interpretarLead ? configuracionIa.modelo : null,
+    },
+    'simulador de conversaciones iniciado en localhost',
+  )
 
   const apagar = async (senal: string): Promise<void> => {
     registrador.info({ senal }, 'apagando simulador')
